@@ -1,0 +1,8 @@
+{
+  "name": "Amor ao Bicho - Farmácia Veterinária",
+  "description": "Aplicativo oficial da farmácia de manipulação veterinária Amor ao Bicho (Americana e Valinhos - SP). Solução B2B2C para Tutores e Médicos-Veterinários com envio de receitas, orçamento express, tracking em tempo real, lembretes de medicação e prescrição digital.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
