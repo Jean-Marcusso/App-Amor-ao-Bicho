@@ -424,6 +424,73 @@ export const THERAPEUTIC_GUIDE: TherapeuticGuideItem[] = [
     ],
     contraindications: 'Fêmeas gestantes e animais em fase precoce de crescimento dental.',
     phStability: 'Fotossensível. Embalagens âmbar de alta barreira.'
+  },
+  {
+    id: 'tg-6',
+    activeSubstance: 'Dipirona Sódica',
+    category: 'Analgésico e Antipirético',
+    speciesIndications: [
+      {
+        species: 'canino',
+        doseRange: '25 mg/kg a cada 8 horas (ou 1 gota/kg se solução oral 500mg/mL)',
+        frequency: 'A cada 8 horas conforme dor ou febre',
+        recommendedForms: ['xarope_suspensao', 'biscoito_palatavel'],
+        recommendedFlavors: ['carne', 'frango', 'doce_de_leite'],
+        observations: 'Excelente controle térmico e analgésico pós-cirúrgico ou ortopédico.'
+      },
+      {
+        species: 'felino',
+        doseRange: '10 a 15 mg/kg a cada 12 ou 24 horas',
+        frequency: 'A cada 12 ou 24 horas com acompanhamento',
+        recommendedForms: ['pasta_oral', 'xarope_suspensao'],
+        recommendedFlavors: ['peixe_salmao'],
+        observations: 'Em felinos a metabolização hepática por glucuronidação é lenta; respeitar o intervalo mínimo de 12-24h.'
+      }
+    ],
+    contraindications: 'Hipersensibilidade a pirazolonas, discrasias sanguíneas severas.',
+    phStability: 'Solúvel em água. Estável em pH 6.0 a 7.5.'
+  },
+  {
+    id: 'tg-7',
+    activeSubstance: 'Prednisolona',
+    category: 'Glicocorticoide / Anti-inflamatório e Imunossupressor',
+    speciesIndications: [
+      {
+        species: 'canino',
+        doseRange: '0.5 mg/kg a cada 24h (anti-inflamatório) ou 1 a 2 mg/kg q12h (imunossupressor)',
+        frequency: 'A cada 12 ou 24 horas',
+        recommendedForms: ['biscoito_palatavel', 'xarope_suspensao'],
+        recommendedFlavors: ['carne', 'figado', 'baunilha'],
+        observations: 'Administrar preferencialmente pela manhã em cães para respeitar o ciclo do cortisol.'
+      },
+      {
+        species: 'felino',
+        doseRange: '1 a 2 mg/kg a cada 24 horas (prednisolona é a forma ativa preferida em gatos)',
+        frequency: 'A cada 24 horas (à noite)',
+        recommendedForms: ['pasta_oral', 'gel_transdermico'],
+        recommendedFlavors: ['peixe_salmao', 'frango'],
+        observations: 'Gatos têm ciclo circadiano noturno. Preferir administração noturna.'
+      }
+    ],
+    contraindications: 'Infecções fúngicas sistêmicas, úlceras de córnea, diabetes descompensado.',
+    phStability: 'Manter em frasco hermético protegido da umidade.'
+  },
+  {
+    id: 'tg-8',
+    activeSubstance: 'Condroitina + Glicosamina',
+    category: 'Condroprotetor e Regenerador Articular',
+    speciesIndications: [
+      {
+        species: 'ambos',
+        doseRange: '15 a 20 mg/kg de cada princípio ativo a cada 24 horas',
+        frequency: 'A cada 24 horas (uso contínuo crônico)',
+        recommendedForms: ['biscoito_palatavel', 'pasta_oral'],
+        recommendedFlavors: ['carne', 'bacon', 'peixe_salmao'],
+        observations: 'Tratamento de osteoartrose e displasias. Altíssima adesão em biscoitos palatáveis Amor ao Bicho.'
+      }
+    ],
+    contraindications: 'Nenhuma contraindicação relevante.',
+    phStability: 'Muito estável em formulações secas e biscoitos assados em temperatura controlada.'
   }
 ];
 

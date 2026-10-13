@@ -13,10 +13,14 @@ import {
   Cookie, 
   RefreshCw,
   ExternalLink,
-  BookOpen
+  BookOpen,
+  Bell,
+  Volume2,
+  MessageSquare
 } from 'lucide-react';
 import { Pet, PrescriptionOrder, DoseSchedule, PharmacyUnit } from '../../types';
 import { PHARMACEUTICAL_FORMS_INFO, BLOG_POSTS, PHARMACY_UNITS } from '../../data/mockData';
+import { notificationService } from '../../services/notificationService';
 
 interface TutorDashboardProps {
   pets: Pet[];
@@ -44,6 +48,28 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   onQuickRepurchase
 }) => {
   const [selectedBlogArticle, setSelectedBlogArticle] = useState<typeof BLOG_POSTS[0] | null>(null);
+  const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(
+    notificationService.getPermission()
+  );
+
+  const handleRequestNotification = async () => {
+    const granted = await notificationService.requestPermission();
+    setNotificationStatus(notificationService.getPermission());
+    if (granted) {
+      notificationService.sendNotification('🐾 Amor ao Bicho - Notificações Ativadas!', {
+        body: 'Você receberá alertas sonoros e nativos quando chegar a hora do remédio do seu pet.'
+      });
+    }
+  };
+
+  const handleTestAlert = (schedule?: DoseSchedule) => {
+    const petName = schedule ? schedule.petName : 'Thor';
+    const medName = schedule ? schedule.medicationName : 'Condroitina Palatável';
+    const time = schedule ? schedule.time : '12:00';
+    notificationService.sendNotification(`⏰ Hora do Remédio: ${petName}!`, {
+      body: `Horário previsto: ${time}. Dose de ${medName}. Favor medicar seu pet!`
+    });
+  };
 
   // Clube de Recompra: identifica tratamentos com 5 dias ou menos restantes
   const repurchaseAlerts = doseSchedules.filter(d => d.isChronic && d.daysRemaining <= 5);
@@ -128,51 +154,112 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
       {/* SESSÃO 1: HORA DO REMÉDIO & GESTÃO DIÁRIA */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Clock className="w-5 h-5 text-emerald-700" />
               Hora do Remédio (Doses de Hoje)
             </h2>
             <p className="text-xs text-slate-500">
-              Lembretes diários com cálculo de adesão e histórico de tratamento
+              Notificações sonoras automáticas no seu celular ou navegador na hora exata de cada dose
             </p>
           </div>
 
-          <button
-            onClick={onOpenNewReminder}
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Lembrete</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleTestAlert()}
+              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5 transition-all"
+              title="Testar alerta sonoro e notificação no celular"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Testar Som no Celular</span>
+            </button>
+
+            <button
+              onClick={onOpenNewReminder}
+              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1 transition-all shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Lembrete</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Banner de Status de Automação de Notificações */}
+        <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white rounded-2xl p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600/60 border border-emerald-400/40 flex items-center justify-center shrink-0">
+              <Bell className="w-5 h-5 text-emerald-200 animate-bounce" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                  Notificações de Doses no Celular & Dispositivo
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  notificationStatus === 'granted'
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'bg-amber-400 text-amber-950'
+                }`}>
+                  {notificationStatus === 'granted' ? 'Alertas Ativos no Dispositivo' : 'Aguardando Permissão'}
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100/90 mt-0.5">
+                {notificationStatus === 'granted'
+                  ? 'O dispositivo tocará e exibirá alertas na tela automaticamente no horário exato da medicação do seu pet.'
+                  : 'Ative as notificações para receber alertas sonoros no celular ou navegador mesmo com o app em segundo plano.'}
+              </p>
+            </div>
+          </div>
+
+          {notificationStatus !== 'granted' && (
+            <button
+              onClick={handleRequestNotification}
+              className="px-4 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-bold text-xs shrink-0 shadow-sm transition-all"
+            >
+              Ativar no Celular / Navegador
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {doseSchedules.map((schedule) => (
             <div
               key={schedule.id}
-              className={`p-4 rounded-2xl border transition-all ${
+              className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                 schedule.takenToday
                   ? 'bg-emerald-50/50 border-emerald-200'
                   : 'bg-white border-slate-200 shadow-xs hover:border-slate-300'
               }`}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-emerald-800">
-                    🐾 {schedule.petName}
+              <div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800">
+                      🐾 {schedule.petName}
+                    </span>
+                    <p className="text-xs font-bold text-slate-800 line-clamp-1 mt-0.5">
+                      {schedule.medicationName}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {schedule.dosage}
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                    {schedule.time}
                   </span>
-                  <p className="text-xs font-bold text-slate-800 line-clamp-1 mt-0.5">
-                    {schedule.medicationName}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {schedule.dosage}
-                  </p>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                  {schedule.time}
-                </span>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => handleTestAlert(schedule)}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all"
+                    title="Disparar notificação e som de teste no celular"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Testar Alerta no Celular</span>
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">

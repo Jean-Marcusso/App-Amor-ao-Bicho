@@ -177,6 +177,33 @@ export const MedicineReminderModal: React.FC<MedicineReminderModalProps> = ({
             />
           </div>
 
+          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/60 space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-emerald-950">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                Horários Diários Calculados Automaticamente:
+              </span>
+              <span className="text-[11px] font-mono bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded font-bold">
+                {intervalHours === 24 ? '1 dose/dia' : intervalHours === 12 ? '2 doses/dia' : '3 doses/dia'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              {(() => {
+                const [h, m] = time.split(':').map(Number);
+                const count = Math.floor(24 / intervalHours);
+                const times = [];
+                for (let i = 0; i < count; i++) {
+                  const nextH = (h + i * intervalHours) % 24;
+                  times.push(`${String(nextH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                }
+                return times.map((t, idx) => (
+                  <span key={idx} className="bg-white px-2.5 py-1 rounded-lg text-xs font-mono font-bold text-emerald-900 border border-emerald-300 shadow-2xs">
+                    🔔 {t}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/60 flex items-start gap-2.5">
             <input
               type="checkbox"

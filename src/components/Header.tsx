@@ -5,6 +5,7 @@ import {
   MessageSquare, 
   User, 
   Stethoscope, 
+  Building2,
   ExternalLink,
   LogIn
 } from 'lucide-react';
@@ -164,6 +165,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
             <span>Médico-Veterinário</span>
+          </button>
+
+          <button
+            onClick={() => onRoleChange('admin')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              currentRole === 'admin'
+                ? 'bg-white text-amber-900 shadow-sm border border-slate-200/50 font-semibold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5 text-amber-600" />
+            <span>Farmácia (Laboratório)</span>
           </button>
         </div>
 

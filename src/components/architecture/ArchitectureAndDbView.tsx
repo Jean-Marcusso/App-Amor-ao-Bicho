@@ -10,11 +10,16 @@ import {
   Terminal, 
   CheckCircle2, 
   FileCode,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { POSTGRESQL_SCHEMA_SQL, ARCHITECTURE_SPECIFICATION } from '../../data/databaseSql';
 
-export const ArchitectureAndDbView: React.FC = () => {
+interface ArchitectureAndDbViewProps {
+  onBackToHome?: () => void;
+}
+
+export const ArchitectureAndDbView: React.FC<ArchitectureAndDbViewProps> = ({ onBackToHome }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'sql' | 'architecture' | 'integrations'>('sql');
 
@@ -26,6 +31,18 @@ export const ArchitectureAndDbView: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Botão Voltar para Área do Tutor */}
+      {onBackToHome && (
+        <button
+          type="button"
+          onClick={onBackToHome}
+          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-sm font-semibold transition-all shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+          ← Voltar para Área do Tutor (Início)
+        </button>
+      )}
+
       {/* Header */}
       <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

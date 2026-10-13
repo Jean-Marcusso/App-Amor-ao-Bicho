@@ -1,0 +1,14 @@
+# Blindagem de Segurança para IA / Agentes
+# Proíbe leitura, indexação ou manipulação de arquivos com segredos e chaves de API
+
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.test
+.env.staging
+service-account*.json
+*.key
+*.pem
+credentials*.json

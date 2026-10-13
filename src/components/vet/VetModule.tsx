@@ -15,19 +15,23 @@ import {
   AlertCircle,
   Download,
   Building2,
-  Printer
+  Printer,
+  ArrowLeft
 } from 'lucide-react';
 import { TherapeuticGuideItem, DosageForm, Flavor, PharmacyUnit } from '../../types';
 import { THERAPEUTIC_GUIDE, PHARMACY_UNITS } from '../../data/mockData';
+import { notificationService } from '../../services/notificationService';
 
 interface VetModuleProps {
   selectedUnit: PharmacyUnit;
   onSendPrescriptionToPharmacy: (prescriptionSummary: any) => void;
+  onBackToHome?: () => void;
 }
 
 export const VetModule: React.FC<VetModuleProps> = ({
   selectedUnit,
-  onSendPrescriptionToPharmacy
+  onSendPrescriptionToPharmacy,
+  onBackToHome
 }) => {
   const [activeTab, setActiveTab] = useState<'calculadora' | 'prescricao' | 'guia' | 'pacientes' | 'visita'>('calculadora');
 
@@ -68,6 +72,33 @@ export const VetModule: React.FC<VetModuleProps> = ({
   const [requestedPharmacist, setRequestedPharmacist] = useState<'flavia' | 'carolina' | 'ambas'>('flavia');
   const [sampleKitRequested, setSampleKitRequested] = useState(true);
 
+  // Funções de Cálculo Automático de Dose Veterinária por Espécie (Cão vs Gato)
+  const getRecommendedDose = (substanceId: string, species: 'canino' | 'felino'): number => {
+    const doseMap: Record<string, { canino: number; felino: number }> = {
+      'tg-1': { canino: 0.1, felino: 0.05 },  // Meloxicam
+      'tg-2': { canino: 10, felino: 8 },      // Gabapentina
+      'tg-3': { canino: 0.25, felino: 0.15 },  // Pimobendan
+      'tg-4': { canino: 0.7, felino: 0.7 },   // Omeprazol
+      'tg-5': { canino: 10, felino: 5 },      // Doxiciclina
+      'tg-6': { canino: 25, felino: 12.5 },   // Dipirona
+      'tg-7': { canino: 0.5, felino: 1.0 },   // Prednisolona
+      'tg-8': { canino: 20, felino: 20 },    // Condroitina + Glicosamina
+    };
+    return doseMap[substanceId]?.[species] || 1.0;
+  };
+
+  const handleSpeciesSelect = (species: 'canino' | 'felino') => {
+    setCalcSpecies(species);
+    const recDose = getRecommendedDose(selectedSubstanceId, species);
+    setPrescribedDoseMgKg(recDose);
+  };
+
+  const handleSubstanceSelect = (substanceId: string) => {
+    setSelectedSubstanceId(substanceId);
+    const recDose = getRecommendedDose(substanceId, calcSpecies);
+    setPrescribedDoseMgKg(recDose);
+  };
+
   // Busca do item na calculadora
   const currentGuideItem = THERAPEUTIC_GUIDE.find(g => g.id === selectedSubstanceId) || THERAPEUTIC_GUIDE[0];
   const calculatedTotalDoseMg = (calcWeight * prescribedDoseMgKg).toFixed(2);
@@ -104,6 +135,18 @@ export const VetModule: React.FC<VetModuleProps> = ({
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Botão Voltar para Área do Tutor */}
+      {onBackToHome && (
+        <button
+          type="button"
+          onClick={onBackToHome}
+          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-sm font-semibold transition-all shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+          ← Voltar para Área do Tutor (Início)
+        </button>
+      )}
+
       {/* Top Banner do Veterinário Prescritor */}
       <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -217,22 +260,22 @@ export const VetModule: React.FC<VetModuleProps> = ({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setCalcSpecies('canino')}
+                    onClick={() => handleSpeciesSelect('canino')}
                     className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
                       calcSpecies === 'canino'
-                        ? 'border-teal-700 bg-teal-50 text-teal-900'
-                        : 'border-slate-200 text-slate-600'
+                        ? 'border-teal-700 bg-teal-50 text-teal-900 shadow-xs'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     🐶 Canino
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCalcSpecies('felino')}
+                    onClick={() => handleSpeciesSelect('felino')}
                     className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
                       calcSpecies === 'felino'
-                        ? 'border-teal-700 bg-teal-50 text-teal-900'
-                        : 'border-slate-200 text-slate-600'
+                        ? 'border-teal-700 bg-teal-50 text-teal-900 shadow-xs'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     🐱 Felino
@@ -256,20 +299,17 @@ export const VetModule: React.FC<VetModuleProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Princípio Ativo Farmacêutico:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Princípio Ativo Farmacêutico:
+                </label>
+                <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                  Dose Recomendada Auto-ajustada
+                </span>
+              </div>
               <select
                 value={selectedSubstanceId}
-                onChange={(e) => {
-                  setSelectedSubstanceId(e.target.value);
-                  const item = THERAPEUTIC_GUIDE.find(g => g.id === e.target.value);
-                  if (item?.id === 'tg-1') setPrescribedDoseMgKg(calcSpecies === 'canino' ? 0.1 : 0.05);
-                  if (item?.id === 'tg-2') setPrescribedDoseMgKg(10);
-                  if (item?.id === 'tg-3') setPrescribedDoseMgKg(0.25);
-                  if (item?.id === 'tg-4') setPrescribedDoseMgKg(0.7);
-                  if (item?.id === 'tg-5') setPrescribedDoseMgKg(5);
-                }}
+                onChange={(e) => handleSubstanceSelect(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
               >
                 {THERAPEUTIC_GUIDE.map((g) => (
@@ -330,6 +370,24 @@ export const VetModule: React.FC<VetModuleProps> = ({
                 {currentGuideItem.speciesIndications.find(s => s.species === calcSpecies || s.species === 'ambos')?.doseRange || 'Dose padrão'}
               </p>
             </div>
+            {/* Alerta de Segurança Clínico Automático para Felinos / Cães */}
+            {selectedSubstanceId === 'tg-1' && calcSpecies === 'felino' && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-300 text-xs flex items-start gap-2 text-amber-950">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Atenção Clínica Farmacopeica (Felinos):</strong> Em gatos, o Meloxicam deve respeitar dose estrita ≤ 0.05 mg/kg com monitoramento renal.
+                </span>
+              </div>
+            )}
+
+            {selectedSubstanceId === 'tg-5' && calcSpecies === 'felino' && (
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs flex items-start gap-2 text-blue-950">
+                <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Recomendação Cat-Friendly:</strong> Doxiciclina nunca deve ser administrada em cápsula seca em felinos (risco de estenose esofágica). A Amor ao Bicho manipula em Pasta Oral Sabor Salmão ou Xarope.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Resultado & Recomendação de Forma Farmacêutica */}
@@ -337,9 +395,9 @@ export const VetModule: React.FC<VetModuleProps> = ({
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-wider text-teal-300 font-semibold">
-                  Resultado do Cálculo
+                  Resultado do Cálculo Automático
                 </span>
-                <span className="text-[11px] bg-teal-800 text-teal-200 px-2 py-0.5 rounded">
+                <span className="text-[11px] bg-teal-800 text-teal-200 px-2 py-0.5 rounded font-mono font-bold">
                   Amor ao Bicho Lab
                 </span>
               </div>
@@ -362,7 +420,7 @@ export const VetModule: React.FC<VetModuleProps> = ({
               <div className="mt-5 space-y-3">
                 <span className="text-xs font-bold text-teal-200 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  Forma Farmacêutica Recomendada para {calcSpecies === 'felino' ? 'Felinos' : 'Caninos'}:
+                  Veículo & Forma Farmacêutica Recomendada para {calcSpecies === 'felino' ? 'Felinos' : 'Caninos'}:
                 </span>
 
                 <div className="bg-white/10 p-3 rounded-xl border border-white/15 text-xs space-y-1">
@@ -381,17 +439,22 @@ export const VetModule: React.FC<VetModuleProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={() => {
+                notificationService.playAlertSound();
                 setRxPetSpecies(calcSpecies === 'canino' ? 'Canino' : 'Felino');
                 setRxPetWeight(calcWeight);
-                setRxMedication(`${currentGuideItem.activeSubstance} ${calculatedTotalDoseMg}mg em ${calcSpecies === 'felino' ? 'Gel Transdérmico Auricular' : 'Biscoitos Palatáveis'}`);
-                setRxPosology(`Administrar ${calculatedTotalDoseMg}mg a cada ${calcFrequencyHours} horas durante ${calcDays} dias consecutivos.`);
+                const vehicleName = calcSpecies === 'felino' 
+                  ? 'Gel Transdérmico Auricular (0.1 mL/click)' 
+                  : 'Biscoitos Palatáveis Mastigáveis (Sabor Carne)';
+                setRxMedication(`${currentGuideItem.activeSubstance} ${calculatedTotalDoseMg}mg manipulado em ${vehicleName}`);
+                setRxPosology(`Administrar 1 dose (${calculatedTotalDoseMg}mg) a cada ${calcFrequencyHours} horas durante ${calcDays} dias consecutivos.`);
                 setActiveTab('prescricao');
               }}
-              className="w-full py-3 bg-white hover:bg-teal-50 text-teal-950 font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-white hover:bg-teal-50 text-teal-950 font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <FileText className="w-4 h-4 text-teal-700" />
-              <span>Transferir para Prescrição Digital →</span>
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Exportar Automaticamente para a Prescrição Digital →</span>
             </button>
           </div>
         </div>

@@ -28,6 +28,7 @@ import { OrderDetailsModal } from './components/tutor/OrderDetailsModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileModal } from './components/auth/UserProfileModal';
 import { CheckCircle2, Heart, MapPin } from 'lucide-react';
+import { notificationService } from './services/notificationService';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('tutor');
@@ -173,11 +174,31 @@ export default function App() {
     showToast(`Alarme criado para ${schedule.petName}: ${schedule.medicationName}`);
   };
 
+  // Monitoramento em segundo plano para lembretes automáticos no navegador
+  useEffect(() => {
+    const checkScheduledDoses = () => {
+      const now = new Date();
+      const currentHoursMinutes = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      doseSchedules.forEach(schedule => {
+        if (!schedule.takenToday && schedule.time === currentHoursMinutes) {
+          notificationService.sendNotification(`⏰ Hora do Remédio: ${schedule.petName}!`, {
+            body: `Horário previsto: ${schedule.time}. Dose de ${schedule.medicationName}. Favor medicar seu pet!`
+          });
+        }
+      });
+    };
+
+    const interval = setInterval(checkScheduledDoses, 30000);
+    return () => clearInterval(interval);
+  }, [doseSchedules]);
+
   const handleToggleDose = (scheduleId: string) => {
     setDoseSchedules(prev => prev.map(s => {
       if (s.id === scheduleId) {
         const nextState = !s.takenToday;
         if (nextState) {
+          notificationService.playAlertSound();
           showToast(`Parabéns! Dose de ${s.petName} registrada com sucesso. 🐾`);
         }
         return {
@@ -294,7 +315,7 @@ export default function App() {
       }
       return o;
     }));
-    showToast(`Status atualizado para: ${statusLabels[newStatus]}. Notificação de WhatsApp disparada!`);
+    showToast(`Status atualizado para: ${statusLabels[newStatus]}`);
   };
 
   const handleApproveQuotePrice = (orderId: string, newPrice: number) => {
@@ -425,6 +446,7 @@ export default function App() {
           <VetModule
             selectedUnit={selectedUnit}
             onSendPrescriptionToPharmacy={handleSendPrescriptionFromVet}
+            onBackToHome={() => setCurrentRole('tutor')}
           />
         )}
 
@@ -434,11 +456,12 @@ export default function App() {
             selectedUnit={selectedUnit}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onApproveQuotePrice={handleApproveQuotePrice}
+            onBackToHome={() => setCurrentRole('tutor')}
           />
         )}
 
         {currentRole === 'architecture' && (
-          <ArchitectureAndDbView />
+          <ArchitectureAndDbView onBackToHome={() => setCurrentRole('tutor')} />
         )}
       </main>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Upload, 
@@ -8,7 +8,11 @@ import {
   Sparkles, 
   Building2, 
   Clock, 
-  AlertCircle 
+  AlertCircle,
+  Camera,
+  RefreshCw,
+  Trash2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Pet, PharmacyUnit, DosageForm, Flavor, PrescriptionOrder } from '../../types';
 import { PHARMACY_UNITS } from '../../data/mockData';
@@ -33,7 +37,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPetId, setSelectedPetId] = useState<string>(pets[0]?.id || '');
   const [unit, setUnit] = useState<PharmacyUnit>(selectedUnit);
-  const [inputMode, setInputMode] = useState<'upload' | 'link'>('upload');
+  const [inputMode, setInputMode] = useState<'camera' | 'upload' | 'link'>('camera');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string>('');
   const [externalLink, setExternalLink] = useState('');
@@ -43,6 +47,74 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
   const [shippingMethod, setShippingMethod] = useState<'retirada_americana' | 'retirada_valinhos' | 'entrega_expressa_rmc' | 'sedex'>(
     selectedUnit === 'americana' ? 'retirada_americana' : 'retirada_valinhos'
   );
+
+  // Estados e Refs da Câmera
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setIsCameraActive(true);
+    } catch {
+      setCameraError('Acesso à webcam/câmera bloqueado ou indisponível. Você também pode clicar no botão "Câmera do Celular" abaixo.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setFilePreviewUrl(dataUrl);
+
+      fetch(dataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], `receita_foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setUploadedFile(file);
+        });
+      stopCamera();
+    }
+  };
+
+  const handleClearPhoto = () => {
+    setFilePreviewUrl('');
+    setUploadedFile(null);
+    stopCamera();
+  };
+
+  // Desliga a câmera se o modal for fechado ou sair do step 2
+  useEffect(() => {
+    if (!isOpen || step !== 2) {
+      stopCamera();
+    }
+  }, [isOpen, step]);
 
   if (!isOpen) return null;
 
@@ -272,30 +344,188 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
 
           {step === 2 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+              {/* Seletor de Modo de Envio com Aba da Câmera em Destaque */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setInputMode('upload')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    inputMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                  onClick={() => {
+                    setInputMode('camera');
+                    stopCamera();
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                    inputMode === 'camera' 
+                      ? 'bg-emerald-700 text-white shadow-xs' 
+                      : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>📷 Tirar Foto Agora (Câmera)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputMode('upload');
+                    stopCamera();
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    inputMode === 'upload' 
+                      ? 'bg-emerald-700 text-white shadow-xs' 
+                      : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  Foto ou PDF da Receita
+                  <span>📁 Galeria / PDF</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setInputMode('link')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    inputMode === 'link' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                  onClick={() => {
+                    setInputMode('link');
+                    stopCamera();
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    inputMode === 'link' 
+                      ? 'bg-emerald-700 text-white shadow-xs' 
+                      : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   <LinkIcon className="w-3.5 h-3.5" />
-                  Link de Receita Digital (VetSmart / Mevo)
+                  <span>🔗 Link Receita Digital</span>
                 </button>
               </div>
 
-              {inputMode === 'upload' ? (
+              {/* Input escondido para acionamento nativo da câmera do celular */}
+              <input
+                ref={nativeCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+
+              {/* SEÇÃO 1: MODO CÂMERA */}
+              {inputMode === 'camera' && (
+                <div className="space-y-3">
+                  {filePreviewUrl ? (
+                    /* Foto já capturada */
+                    <div className="border border-emerald-300 rounded-2xl p-4 bg-emerald-50/40 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Foto da Receita Capturada com Sucesso!
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearPhoto}
+                          className="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Descartar e Fotografar Novamente</span>
+                        </button>
+                      </div>
+
+                      <div className="relative rounded-xl overflow-hidden max-h-72 bg-black flex items-center justify-center border border-slate-200 shadow-inner">
+                        <img
+                          src={filePreviewUrl}
+                          alt="Receita Capturada"
+                          className="max-h-72 w-auto object-contain"
+                        />
+                      </div>
+
+                      <p className="text-[11px] text-emerald-800 text-center">
+                        ✓ Imagem pronta! Nossos farmacêuticos analisarão os princípios ativos e a posologia prescrita.
+                      </p>
+                    </div>
+                  ) : isCameraActive ? (
+                    /* Câmera Ativa / Viewfinder ao vivo */
+                    <div className="space-y-3">
+                      <div className="relative rounded-2xl overflow-hidden bg-black border-2 border-emerald-500 shadow-lg">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-64 sm:h-72 object-cover"
+                        />
+                        {/* Moldura guia sobreposta */}
+                        <div className="absolute inset-4 border-2 border-dashed border-white/70 rounded-xl pointer-events-none flex items-center justify-center">
+                          <span className="bg-black/60 text-white text-[11px] px-3 py-1 rounded-full backdrop-blur-xs font-medium">
+                            Enquadre a folha da receita aqui
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+                        >
+                          Cancelar Câmera
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all animate-pulse"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>📸 Fotografar Receita</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Convite para Abrir Câmera */
+                    <div className="border-2 border-dashed border-emerald-300 rounded-2xl p-6 text-center bg-gradient-to-b from-emerald-50/50 to-white space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-800 mx-auto shadow-xs">
+                        <Camera className="w-8 h-8 text-emerald-700" />
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">
+                          Tirar Foto da Receita Agora
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                          Aponte a câmera do seu celular ou computador diretamente para o papel da receita veterinária.
+                        </p>
+                      </div>
+
+                      {cameraError && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 text-left flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <span>{cameraError}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Abrir Câmera na Tela</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => nativeCameraInputRef.current?.click()}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Abrir Câmera do Celular</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SEÇÃO 2: MODO UPLOAD DE ARQUIVO OU PDF */}
+              {inputMode === 'upload' && (
                 <div className="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/30 rounded-2xl p-6 text-center cursor-pointer transition-colors relative">
                   <input
                     type="file"
@@ -316,13 +546,16 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                       <div>
                         <p className="font-bold text-sm text-slate-800">Clique para enviar ou arraste a receita aqui</p>
                         <p className="text-xs text-slate-500 mt-1">
-                          Formatos aceitos: JPG, PNG, PDF da clínica ou foto tirada pelo celular
+                          Formatos aceitos: JPG, PNG, PDF da clínica veterinária
                         </p>
                       </div>
                     )}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {/* SEÇÃO 3: MODO LINK DIGITAL */}
+              {inputMode === 'link' && (
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-700">
                     Cole o link ou código da receita digital:
@@ -335,7 +568,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   />
                   <p className="text-[11px] text-slate-500">
-                    Nossa equipe acessará o documento assinado digitalmente pelo seu veterinário.
+                    Nossa equipe farmacêutica acessará o documento assinado digitalmente pelo seu veterinário.
                   </p>
                 </div>
               )}

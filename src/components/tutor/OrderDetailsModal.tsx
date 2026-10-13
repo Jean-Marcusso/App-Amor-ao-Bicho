@@ -29,7 +29,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onSimulatePayPix
 }) => {
   const [copiedPix, setCopiedPix] = useState(false);
-  const [activeTab, setActiveTab] = useState<'tracking' | 'checkout' | 'whatsapp'>('tracking');
+  const [activeTab, setActiveTab] = useState<'tracking' | 'checkout'>('tracking');
 
   if (!isOpen || !order) return null;
 
@@ -120,7 +120,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         <div className="flex border-b border-slate-200 bg-slate-50 text-xs px-6">
           <button
             onClick={() => setActiveTab('tracking')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-colors ${
+            className={`py-3 px-4 font-semibold border-b-2 transition-colors ${
               activeTab === 'tracking'
                 ? 'border-emerald-700 text-emerald-900 bg-white'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -130,23 +130,13 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('checkout')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-colors ${
+            className={`py-3 px-4 font-semibold border-b-2 transition-colors ${
               activeTab === 'checkout'
                 ? 'border-emerald-700 text-emerald-900 bg-white'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Orçamento & PIX Express
-          </button>
-          <button
-            onClick={() => setActiveTab('whatsapp')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-colors ${
-              activeTab === 'whatsapp'
-                ? 'border-emerald-700 text-emerald-900 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Notificações WhatsApp ({order.whatsappLogs.length})
           </button>
         </div>
 
@@ -323,28 +313,6 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'whatsapp' && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">
-                Histórico de notificações automáticas sincronizadas via WhatsApp API (Z-API / Evolution API):
-              </p>
-              {order.whatsappLogs.map((log) => (
-                <div key={log.id} className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
-                      <MessageSquare className="w-3 h-3 text-emerald-600" />
-                      Para: {log.recipient}
-                    </span>
-                    <span className="text-slate-400">{log.timestamp}</span>
-                  </div>
-                  <p className="text-xs text-slate-700 bg-white p-2.5 rounded-lg border border-emerald-100/50">
-                    "{log.message}"
-                  </p>
-                </div>
-              ))}
             </div>
           )}
         </div>
