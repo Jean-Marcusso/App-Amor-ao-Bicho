@@ -126,6 +126,17 @@ export interface DoseSchedule {
   isChronic: boolean;
   takenToday: boolean;
   lastTakenAt?: string;
+  lowStockAlertDays?: number; // Dias de antecedência para alertar que está acabando (padrão: 5 dias)
+}
+
+export interface InAppNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  type: 'dose_alarm' | 'low_stock' | 'order_update' | 'system';
+  petName?: string;
+  read: boolean;
 }
 
 export interface QuoteItem {

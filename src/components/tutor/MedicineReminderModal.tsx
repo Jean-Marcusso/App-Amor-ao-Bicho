@@ -7,15 +7,25 @@ interface MedicineReminderModalProps {
   onClose: () => void;
   pets: Pet[];
   onAddSchedule: (schedule: DoseSchedule) => void;
+  initialPetId?: string;
 }
 
 export const MedicineReminderModal: React.FC<MedicineReminderModalProps> = ({
   isOpen,
   onClose,
   pets,
-  onAddSchedule
+  onAddSchedule,
+  initialPetId
 }) => {
-  const [selectedPetId, setSelectedPetId] = useState(pets[0]?.id || '');
+  const [selectedPetId, setSelectedPetId] = useState(initialPetId || pets[0]?.id || '');
+
+  React.useEffect(() => {
+    if (initialPetId) {
+      setSelectedPetId(initialPetId);
+    } else if (pets[0]?.id && !selectedPetId) {
+      setSelectedPetId(pets[0].id);
+    }
+  }, [initialPetId, isOpen, pets]);
   const [medicationName, setMedicationName] = useState('');
   const [dosage, setDosage] = useState('');
   const [form, setForm] = useState<DosageForm>('biscoito_palatavel');
@@ -23,6 +33,7 @@ export const MedicineReminderModal: React.FC<MedicineReminderModalProps> = ({
   const [intervalHours, setIntervalHours] = useState(24);
   const [totalDays, setTotalDays] = useState(30);
   const [isChronic, setIsChronic] = useState(true);
+  const [lowStockAlertDays, setLowStockAlertDays] = useState(5);
 
   if (!isOpen) return null;
 
@@ -48,7 +59,8 @@ export const MedicineReminderModal: React.FC<MedicineReminderModalProps> = ({
       dosesGiven: 0,
       nextDoseTime: `Hoje às ${time}`,
       isChronic,
-      takenToday: false
+      takenToday: false,
+      lowStockAlertDays: Number(lowStockAlertDays)
     };
 
     onAddSchedule(newSchedule);
@@ -204,20 +216,44 @@ export const MedicineReminderModal: React.FC<MedicineReminderModalProps> = ({
               })()}
             </div>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/60 flex items-start gap-2.5">
-            <input
-              type="checkbox"
-              id="isChronicCheck"
-              checked={isChronic}
-              onChange={(e) => setIsChronic(e.target.checked)}
-              className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500"
-            />
-            <label htmlFor="isChronicCheck" className="text-xs text-emerald-900 cursor-pointer">
-              <strong>Ativar Clube de Recompra Inteligente</strong>
-              <p className="text-[11px] text-emerald-700 mt-0.5">
-                O aplicativo alertará automaticamente 5 dias antes da fórmula acabar para garantir que o pet não interrompa o tratamento.
-              </p>
-            </label>
+          <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 space-y-2">
+            <div className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="isChronicCheck"
+                checked={isChronic}
+                onChange={(e) => setIsChronic(e.target.checked)}
+                className="mt-0.5 rounded text-amber-600 focus:ring-amber-500"
+              />
+              <label htmlFor="isChronicCheck" className="text-xs text-amber-950 cursor-pointer">
+                <strong>Programar Alerta de Remédio Acabando</strong>
+                <p className="text-[11px] text-amber-800 mt-0.5">
+                  Receba uma notificação sonora e no celular antes do tratamento terminar para renovar a fórmula sem interrupção.
+                </p>
+              </label>
+            </div>
+
+            {isChronic && (
+              <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs">
+                <span className="text-[11px] font-semibold text-amber-900">Avisar com antecedência de:</span>
+                <div className="flex items-center gap-1.5">
+                  {[3, 5, 7].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setLowStockAlertDays(days)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                        lowStockAlertDays === days
+                          ? 'bg-amber-600 text-white shadow-2xs'
+                          : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-100/50'
+                      }`}
+                    >
+                      {days} dias antes
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 flex justify-end gap-2">

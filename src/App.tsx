@@ -7,7 +7,8 @@ import {
   DoseSchedule, 
   OrderStatus, 
   UserAccount, 
-  RegisterData 
+  RegisterData,
+  InAppNotification
 } from './types';
 import { 
   INITIAL_PETS, 
@@ -47,6 +48,42 @@ export default function App() {
   const [pets, setPets] = useState<Pet[]>(INITIAL_PETS);
   const [orders, setOrders] = useState<PrescriptionOrder[]>(INITIAL_ORDERS);
   const [doseSchedules, setDoseSchedules] = useState<DoseSchedule[]>(INITIAL_DOSE_SCHEDULES);
+  const [selectedPetForReminder, setSelectedPetForReminder] = useState<string | undefined>(undefined);
+
+  // Central de Notificações Recebidas pelo Tutor
+  const [notifications, setNotifications] = useState<InAppNotification[]>([
+    {
+      id: 'notif-1',
+      title: '⏰ Hora do Remédio: Thor',
+      message: 'Horário de hoje: 08:00. Dose de Condroitina + Glicosamina + MSM (Biscoito de Carne). Favor medicar seu pet!',
+      timestamp: 'Hoje às 08:00',
+      type: 'dose_alarm',
+      petName: 'Thor',
+      read: false
+    },
+    {
+      id: 'notif-2',
+      title: '⚠️ Remédio Acabando: Thor',
+      message: 'O tratamento contínuo do Thor está a 4 dias do término (restam 4 doses). Repita o pedido para não interromper a terapia!',
+      timestamp: 'Hoje às 07:30',
+      type: 'low_stock',
+      petName: 'Thor',
+      read: false
+    },
+    {
+      id: 'notif-3',
+      title: '📦 Pedido AB-2026-891 em Manipulação',
+      message: 'A fórmula prescrita entrou na bancada do laboratório Amor ao Bicho Americana.',
+      timestamp: 'Hoje às 09:10',
+      type: 'order_update',
+      petName: 'Thor',
+      read: true
+    }
+  ]);
+
+  const handleDismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
   // Modals de Operação
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
@@ -171,6 +208,18 @@ export default function App() {
 
   const handleAddSchedule = (schedule: DoseSchedule) => {
     setDoseSchedules(prev => [schedule, ...prev]);
+    setNotifications(prev => [
+      {
+        id: `notif-sched-${Date.now()}`,
+        title: `⏰ Alarme Criado: ${schedule.petName}`,
+        message: `Lembrete programado para ${schedule.medicationName} às ${schedule.time}. Alertas sonoros ativos.`,
+        timestamp: 'Agora mesmo',
+        type: 'dose_alarm',
+        petName: schedule.petName,
+        read: false
+      },
+      ...prev
+    ]);
     showToast(`Alarme criado para ${schedule.petName}: ${schedule.medicationName}`);
   };
 
@@ -184,6 +233,23 @@ export default function App() {
         if (!schedule.takenToday && schedule.time === currentHoursMinutes) {
           notificationService.sendNotification(`⏰ Hora do Remédio: ${schedule.petName}!`, {
             body: `Horário previsto: ${schedule.time}. Dose de ${schedule.medicationName}. Favor medicar seu pet!`
+          });
+
+          setNotifications(prev => {
+            const alreadyExists = prev.some(n => n.type === 'dose_alarm' && n.title.includes(schedule.petName) && n.timestamp === `Hoje às ${schedule.time}`);
+            if (alreadyExists) return prev;
+            return [
+              {
+                id: `notif-auto-${Date.now()}-${schedule.id}`,
+                title: `⏰ Hora do Remédio: ${schedule.petName}!`,
+                message: `Horário previsto: ${schedule.time}. Dose de ${schedule.medicationName}. Favor medicar seu pet!`,
+                timestamp: `Hoje às ${schedule.time}`,
+                type: 'dose_alarm',
+                petName: schedule.petName,
+                read: false
+              },
+              ...prev
+            ];
           });
         }
       });
@@ -257,6 +323,18 @@ export default function App() {
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    setNotifications(prev => [
+      {
+        id: `notif-rep-${Date.now()}`,
+        title: `⚠️ Pedido de Renovação: ${schedule.petName}`,
+        message: `Renovação expressa da fórmula de ${schedule.medicationName} (${newCode}) enviada ao laboratório Amor ao Bicho.`,
+        timestamp: 'Agora mesmo',
+        type: 'order_update',
+        petName: schedule.petName,
+        read: false
+      },
+      ...prev
+    ]);
     showToast(`Renovação expressa criada para ${schedule.petName}! O pedido ${newCode} já foi encaminhado ao laboratório.`);
   };
 
@@ -315,6 +393,18 @@ export default function App() {
       }
       return o;
     }));
+
+    setNotifications(prev => [
+      {
+        id: `notif-st-${Date.now()}`,
+        title: `📦 Status Atualizado: Pedido #${orderId.slice(-4).toUpperCase()}`,
+        message: `Seu pedido avançou para a etapa: "${statusLabels[newStatus]}".`,
+        timestamp: 'Agora mesmo',
+        type: 'order_update',
+        read: false
+      },
+      ...prev
+    ]);
     showToast(`Status atualizado para: ${statusLabels[newStatus]}`);
   };
 
@@ -421,6 +511,7 @@ export default function App() {
             orders={orders}
             doseSchedules={doseSchedules}
             selectedUnit={selectedUnit}
+            notifications={notifications}
             onOpenNewPrescription={handleTriggerNewPrescription}
             onOpenNewPet={() => {
               if (!currentUser) {
@@ -429,24 +520,18 @@ export default function App() {
               }
               setIsPetModalOpen(true);
             }}
-            onOpenNewReminder={() => {
+            onOpenNewReminder={(petId) => {
               if (!currentUser) {
                 openAuthWithReason('login', 'Faça login para programar lembretes da Hora do Remédio.');
                 return;
               }
+              setSelectedPetForReminder(petId);
               setIsReminderModalOpen(true);
             }}
             onSelectOrder={(order) => setSelectedOrderForTracking(order)}
             onToggleDoseAdministered={handleToggleDose}
             onQuickRepurchase={handleQuickRepurchase}
-          />
-        )}
-
-        {currentRole === 'vet' && (
-          <VetModule
-            selectedUnit={selectedUnit}
-            onSendPrescriptionToPharmacy={handleSendPrescriptionFromVet}
-            onBackToHome={() => setCurrentRole('tutor')}
+            onDismissNotification={handleDismissNotification}
           />
         )}
 
@@ -454,8 +539,18 @@ export default function App() {
           <AdminModule
             orders={orders}
             selectedUnit={selectedUnit}
+            doseSchedules={doseSchedules}
+            pets={pets}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onApproveQuotePrice={handleApproveQuotePrice}
+            onBackToHome={() => setCurrentRole('tutor')}
+          />
+        )}
+
+        {currentRole === 'vet' && (
+          <VetModule
+            selectedUnit={selectedUnit}
+            onSendPrescriptionToPharmacy={handleSendPrescriptionFromVet}
             onBackToHome={() => setCurrentRole('tutor')}
           />
         )}
@@ -527,16 +622,9 @@ export default function App() {
               <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => setCurrentRole('admin')}
-                  className="text-emerald-400/40 hover:text-emerald-200 underline"
+                  className="text-emerald-400/60 hover:text-emerald-200 underline"
                 >
-                  Acesso Farmácia (Lab)
-                </button>
-                <span>•</span>
-                <button
-                  onClick={() => setCurrentRole('architecture')}
-                  className="text-emerald-400/40 hover:text-emerald-200 underline"
-                >
-                  Docs & DB
+                  Acesso Funcionários Farmácia (Admin)
                 </button>
               </div>
             </div>
@@ -589,9 +677,13 @@ export default function App() {
 
       <MedicineReminderModal
         isOpen={isReminderModalOpen}
-        onClose={() => setIsReminderModalOpen(false)}
+        onClose={() => {
+          setIsReminderModalOpen(false);
+          setSelectedPetForReminder(undefined);
+        }}
         pets={pets}
         onAddSchedule={handleAddSchedule}
+        initialPetId={selectedPetForReminder}
       />
 
       <OrderDetailsModal

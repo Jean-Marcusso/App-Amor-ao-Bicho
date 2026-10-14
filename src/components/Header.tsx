@@ -141,14 +141,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* B2B2C Perspective Switcher Tabs */}
-        <div className="flex items-center flex-wrap gap-1 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
+        {/* Seletor de Perfil: Tutor (Cliente) e Farmácia (Admin) */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
           <button
             onClick={() => onRoleChange('tutor')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs transition-all ${
               currentRole === 'tutor'
-                ? 'bg-white text-emerald-900 shadow-sm border border-slate-200/50 font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-emerald-900 shadow-sm border border-slate-200/50 font-bold'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
             }`}
           >
             <User className="w-3.5 h-3.5 text-emerald-600" />
@@ -156,27 +156,15 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            onClick={() => onRoleChange('vet')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              currentRole === 'vet'
-                ? 'bg-white text-teal-900 shadow-sm border border-slate-200/50 font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
-            <span>Médico-Veterinário</span>
-          </button>
-
-          <button
             onClick={() => onRoleChange('admin')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs transition-all ${
               currentRole === 'admin'
-                ? 'bg-white text-amber-900 shadow-sm border border-slate-200/50 font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-amber-900 shadow-sm border border-slate-200/50 font-bold'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
             }`}
           >
             <Building2 className="w-3.5 h-3.5 text-amber-600" />
-            <span>Farmácia (Laboratório)</span>
+            <span>Acesso Farmácia (Admin)</span>
           </button>
         </div>
 
@@ -227,12 +215,15 @@ export const Header: React.FC<HeaderProps> = ({
           </a>
 
           {currentRole === 'tutor' && (
-            <button
-              onClick={onOpenNewPrescription}
+            <a
+              href={`https://wa.me/55${unit.whatsapp.replace(/\D/g, '')}?text=Olá!%20Gostaria%20de%20falar%20com%20a%20farmácia%20Amor%20ao%20Bicho.`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 bg-[#0b4d3a] hover:bg-[#093e2f] text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition-all hover:shadow"
             >
-              <span>+ Enviar Receita</span>
-            </button>
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Falar no WhatsApp</span>
+            </a>
           )}
         </div>
       </div>
