@@ -17,7 +17,7 @@ import {
   Check,
   MessageSquare
 } from 'lucide-react';
-import { Pet, PrescriptionOrder, DoseSchedule, PharmacyUnit, InAppNotification } from '../../types';
+import { Pet, PrescriptionOrder, DoseSchedule, PharmacyUnit, InAppNotification, UserAccount } from '../../types';
 import { PHARMACY_UNITS } from '../../data/mockData';
 import { notificationService } from '../../services/notificationService';
 
@@ -27,6 +27,8 @@ interface TutorDashboardProps {
   doseSchedules: DoseSchedule[];
   selectedUnit: PharmacyUnit;
   notifications?: InAppNotification[];
+  currentUser?: UserAccount | null;
+  onOpenMenu?: () => void;
   onOpenNewPrescription: () => void;
   onOpenNewPet: () => void;
   onOpenNewReminder: (petId?: string) => void;
@@ -42,6 +44,8 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   doseSchedules,
   selectedUnit,
   notifications = [],
+  currentUser,
+  onOpenMenu,
   onOpenNewPrescription,
   onOpenNewPet,
   onOpenNewReminder,
@@ -88,31 +92,124 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   });
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-6 sm:space-y-8 pb-16">
+      {/* SEÇÃO DE ATALHOS RÁPIDOS DO APLICATIVO */}
+      <section className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <h2 className="text-xs sm:text-sm font-extrabold tracking-tight text-slate-800 uppercase">
+              Atalhos Rápidos
+            </h2>
+          </div>
+          <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+            Acesso em 1 toque
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:gap-3.5">
+          {/* Atalho 1: Programar Hora do Remédio */}
+          <button
+            onClick={() => onOpenNewReminder()}
+            className="group flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left sm:gap-3.5 p-2.5 sm:p-4 rounded-2xl bg-gradient-to-b from-teal-50/70 to-white hover:from-teal-100/70 hover:to-white border border-teal-200/80 hover:border-teal-300 shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-700 text-white flex items-center justify-center shadow-sm shadow-teal-700/20 group-hover:scale-105 transition-transform mb-1.5 sm:mb-0 shrink-0">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-teal-950 leading-tight block">
+                Hora do Remédio
+              </span>
+              <span className="text-[10px] sm:text-xs text-teal-800 font-medium leading-tight block mt-0.5 truncate">
+                Alarmes c/ som
+              </span>
+            </div>
+          </button>
+
+          {/* Atalho 2: Cadastrar Novo Pet */}
+          <button
+            onClick={onOpenNewPet}
+            className="group flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left sm:gap-3.5 p-2.5 sm:p-4 rounded-2xl bg-gradient-to-b from-rose-50/70 to-white hover:from-rose-100/70 hover:to-white border border-rose-200/80 hover:border-rose-300 shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-sm shadow-rose-700/20 group-hover:scale-105 transition-transform mb-1.5 sm:mb-0 shrink-0">
+              <Heart className="w-5 h-5 text-white fill-white/40" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-rose-950 leading-tight block">
+                Cadastrar Pet
+              </span>
+              <span className="text-[10px] sm:text-xs text-rose-800 font-medium leading-tight block mt-0.5 truncate">
+                Novo animal
+              </span>
+            </div>
+          </button>
+
+          {/* Atalho 3: Falar no WhatsApp */}
+          <a
+            href={notificationService.buildWhatsAppUrl(unit.whatsapp, `Olá! Gostaria de falar com a farmácia Amor ao Bicho (${unit.name}) sobre manipulação veterinária para meu pet.`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left sm:gap-3.5 p-2.5 sm:p-4 rounded-2xl bg-gradient-to-b from-emerald-50/80 to-white hover:from-emerald-100/80 hover:to-white border border-emerald-300 shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 text-white flex items-center justify-center shadow-sm shadow-emerald-700/20 group-hover:scale-105 transition-transform mb-1.5 sm:mb-0 shrink-0">
+              <MessageSquare className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs sm:text-sm font-bold text-emerald-950 leading-tight block">
+                WhatsApp
+              </span>
+              <span className="text-[10px] sm:text-xs text-emerald-800 font-medium leading-tight block mt-0.5 truncate">
+                {unit.city}
+              </span>
+            </div>
+          </a>
+        </div>
+      </section>
+
       {/* Hero Banner: Foco em Notificações & Gestão do Pet */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-[#0b4d3a] via-[#0d5c46] to-[#127057] text-white p-6 sm:p-8 shadow-xl overflow-hidden">
+      <div className="relative rounded-3xl bg-gradient-to-r from-[#0b4d3a] via-[#0d5c46] to-[#127057] text-white p-5 sm:p-8 shadow-xl overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
           <Heart className="w-80 h-80" />
         </div>
 
         <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-semibold backdrop-blur-xs border border-emerald-600/30">
-            <Bell className="w-3.5 h-3.5 text-emerald-300 animate-pulse" />
-            <span>Central de Notificações, Horários e Cuidados com o Pet</span>
-          </div>
+          {!currentUser ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-emerald-950/70 border border-emerald-400/30 backdrop-blur-md text-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
+                <span className="text-emerald-100">
+                  Navegando como <strong>Visitante</strong>. Crie seu cadastro com apenas e-mail e senha para salvar seus pets e alarmes!
+                </span>
+              </div>
+              {onOpenMenu && (
+                <button
+                  type="button"
+                  onClick={onOpenMenu}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 font-bold text-xs shrink-0 transition-all shadow-xs cursor-pointer self-start sm:self-auto"
+                >
+                  Entrar / Cadastrar
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-semibold backdrop-blur-xs border border-emerald-600/30">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Olá, <strong>{currentUser.name}</strong> • Área do Tutor Conectada</span>
+            </div>
+          )}
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
+          <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
             Nunca mais esqueça a hora do remédio nem deixe a fórmula acabar.
           </h1>
 
-          <p className="text-sm text-emerald-100/90 leading-relaxed">
+          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
             Configure alarmes com som para cada medicação, monitore a quantidade restante de doses e repita pedidos com a Amor ao Bicho de <strong>{unit.city}</strong> sem complicação.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => onOpenNewReminder()}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-emerald-950 font-bold text-xs shadow-lg hover:bg-emerald-50 transition-all active:scale-95"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-white text-emerald-950 font-bold text-xs shadow-lg hover:bg-emerald-50 transition-all active:scale-95 cursor-pointer"
             >
               <Clock className="w-4 h-4 text-emerald-700" />
               <span>Programar Hora do Remédio</span>
@@ -120,7 +217,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
             <button
               onClick={onOpenNewPet}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 text-white font-semibold text-xs border border-emerald-500/30 transition-all"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 text-white font-semibold text-xs border border-emerald-500/30 transition-all cursor-pointer"
             >
               <Heart className="w-4 h-4 text-rose-300" />
               <span>Cadastrar Novo Pet</span>
@@ -130,10 +227,10 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
               href={notificationService.buildWhatsAppUrl(unit.whatsapp, `Olá! Gostaria de falar com a farmácia Amor ao Bicho (${unit.name}) sobre fórmulas e manipulação para meu pet.`)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all active:scale-95"
             >
               <MessageSquare className="w-4 h-4 text-white" />
-              <span>Falar com a Farmácia no WhatsApp</span>
+              <span>Falar no WhatsApp</span>
             </a>
           </div>
         </div>

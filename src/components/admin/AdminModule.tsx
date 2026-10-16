@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  Building2, 
-  Clock, 
-  MessageSquare, 
-  Users, 
-  Filter, 
+import {
+  Building2,
+  Clock,
+  MessageSquare,
+  Users,
+  Filter,
   ArrowLeft,
   Bell,
   Search,
@@ -160,31 +160,28 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto text-xs shrink-0">
             <button
               onClick={() => setClientFilterStatus('all')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                clientFilterStatus === 'all'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${clientFilterStatus === 'all'
                   ? 'bg-amber-600 text-white shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Todos ({pets.length})
             </button>
             <button
               onClick={() => setClientFilterStatus('low_stock')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                clientFilterStatus === 'low_stock'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${clientFilterStatus === 'low_stock'
                   ? 'bg-amber-600 text-white shadow-2xs'
                   : 'bg-amber-50 text-amber-800 hover:bg-amber-100/70'
-              }`}
+                }`}
             >
               ⚠️ Remédio Acabando ({doseSchedules.filter(d => d.daysRemaining <= (d.lowStockAlertDays || 5)).length})
             </button>
             <button
               onClick={() => setClientFilterStatus('has_alarms')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                clientFilterStatus === 'has_alarms'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${clientFilterStatus === 'has_alarms'
                   ? 'bg-amber-600 text-white shadow-2xs'
                   : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100/70'
-              }`}
+                }`}
             >
               ⏰ Com Alarmes Ativos ({pets.filter(p => doseSchedules.some(s => s.petId === p.id)).length})
             </button>
@@ -226,11 +223,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               return (
                 <div
                   key={pet.id}
-                  className={`p-4 sm:p-5 rounded-2xl border transition-all text-xs flex flex-col justify-between space-y-4 ${
-                    hasLowStock
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all text-xs flex flex-col justify-between space-y-4 ${hasLowStock
                       ? 'bg-amber-50/40 border-amber-300 shadow-2xs'
                       : 'bg-white border-slate-200 shadow-xs'
-                  }`}
+                    }`}
                 >
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     {/* Dados do Pet & Tutor */}
@@ -279,18 +275,17 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
                     {/* Botão de Contato Rápido no WhatsApp */}
                     <div className="shrink-0 flex items-center md:flex-col md:items-end justify-between gap-2">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        hasLowStock
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${hasLowStock
                           ? 'bg-amber-200 text-amber-950 border border-amber-300'
                           : petSchedules.length > 0
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}>
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
                         {hasLowStock
                           ? '⚠️ Alerta: Remédio Acabando'
                           : petSchedules.length > 0
-                          ? '🔔 Alarmes Ativos'
-                          : '○ Sem Alarmes'}
+                            ? '🔔 Alarmes Ativos'
+                            : '○ Sem Alarmes'}
                       </span>
 
                       <a
@@ -322,11 +317,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                           return (
                             <div
                               key={schedule.id}
-                              className={`p-3 rounded-xl border flex flex-col justify-between space-y-2 ${
-                                isLow
+                              className={`p-3 rounded-xl border flex flex-col justify-between space-y-2 ${isLow
                                   ? 'bg-amber-100/60 border-amber-300 text-amber-950'
                                   : 'bg-slate-50 border-slate-200 text-slate-800'
-                              }`}
+                                }`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div>
@@ -347,15 +341,14 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                                   {schedule.intervalHours === 24
                                     ? '1x ao dia'
                                     : schedule.intervalHours === 12
-                                    ? '2x ao dia'
-                                    : `${schedule.intervalHours}h em ${schedule.intervalHours}h`} • Doses: {schedule.dosesGiven}/{schedule.totalDoses}
+                                      ? '2x ao dia'
+                                      : `${schedule.intervalHours}h em ${schedule.intervalHours}h`} • Doses: {schedule.dosesGiven}/{schedule.totalDoses}
                                 </span>
 
-                                <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                                  isLow
+                                <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isLow
                                     ? 'bg-amber-200 text-amber-950 font-black'
                                     : 'bg-emerald-100 text-emerald-900'
-                                }`}>
+                                  }`}>
                                   {isLow ? `⚠️ Restam ${schedule.daysRemaining} dias!` : `Estoque: ${schedule.daysRemaining}d`}
                                 </span>
                               </div>

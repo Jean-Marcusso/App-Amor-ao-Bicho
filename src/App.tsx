@@ -28,14 +28,15 @@ import { MedicineReminderModal } from './components/tutor/MedicineReminderModal'
 import { OrderDetailsModal } from './components/tutor/OrderDetailsModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileModal } from './components/auth/UserProfileModal';
-import { CheckCircle2, Heart, MapPin } from 'lucide-react';
+import { AppMenuModal } from './components/menu/AppMenuModal';
+import { CheckCircle2, Heart, MapPin, Clock, Plus, MessageSquare, Building2, User, Menu } from 'lucide-react';
 import { notificationService } from './services/notificationService';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('tutor');
   const [selectedUnit, setSelectedUnit] = useState<PharmacyUnit>('americana');
 
-  // Usuário Autenticado (Inicia com Mariana Duarte pré-carregada para facilitar teste imediato)
+  // Usuário Autenticado (Inicia com usuário salvo ou demonstração de tutor)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     try {
       const stored = localStorage.getItem('amor_ao_bicho_user');
@@ -91,11 +92,18 @@ export default function App() {
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<PrescriptionOrder | null>(null);
 
-  // Modals de Autenticação & Perfil
+  // Modals de Autenticação, Menu & Perfil
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [menuInitialTab, setMenuInitialTab] = useState<'auth' | 'profile' | 'staff'>('auth');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('register');
   const [authForcedMessage, setAuthForcedMessage] = useState<string | undefined>(undefined);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleOpenMenu = (tab: 'auth' | 'profile' | 'staff' = 'auth') => {
+    setMenuInitialTab(tab);
+    setIsMenuModalOpen(true);
+  };
 
   // Feedback Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -164,10 +172,78 @@ export default function App() {
     showToast(`Conta criada com sucesso! Bem-vindo(a) à Amor ao Bicho, ${newUser.name}.`);
   };
 
+  // Cadastro Rápido do Tutor (Apenas E-mail e Senha)
+  const handleQuickTutorRegister = (email: string, password?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const namePart = cleanEmail.split('@')[0];
+    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+
+    const newUser: UserAccount = {
+      id: `tutor-${Date.now()}`,
+      name: formattedName,
+      email: cleanEmail,
+      role: 'tutor',
+      phone: '(19) 99000-0000',
+      pharmacyUnit: selectedUnit,
+      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
+      address: {
+        street: 'Rua Principal',
+        number: '100',
+        neighborhood: 'Centro',
+        city: selectedUnit === 'americana' ? 'Americana' : 'Valinhos',
+        state: 'SP',
+        cep: selectedUnit === 'americana' ? '13465-000' : '13270-000'
+      }
+    };
+
+    setCurrentUser(newUser);
+    setCurrentRole('tutor');
+    showToast(`Bem-vindo(a) à Amor ao Bicho! Sua Área do Tutor foi liberada com sucesso.`);
+  };
+
+  // Login Rápido (E-mail e Senha)
+  const handleQuickTutorLogin = (email: string, password?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Se for email de funcionária admin:
+    const adminUser = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'admin');
+    if (adminUser) {
+      setCurrentUser(adminUser);
+      setCurrentRole('admin');
+      if (adminUser.pharmacyUnit) setSelectedUnit(adminUser.pharmacyUnit);
+      showToast(`Acesso Farmácia autorizado: Bem-vinda, ${adminUser.name}!`);
+      return;
+    }
+
+    // Se for usuário existente
+    const existing = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      setCurrentUser(existing);
+      setCurrentRole(existing.role);
+      showToast(`Bem-vindo(a) de volta, ${existing.name}!`);
+    } else {
+      handleQuickTutorRegister(email, password);
+    }
+  };
+
+  // Login Direto de Funcionárias da Farmácia (Admin)
+  const handleStaffLogin = (unit: PharmacyUnit = 'americana') => {
+    const staff = INITIAL_USERS.find(u => u.role === 'admin' && u.pharmacyUnit === unit) || INITIAL_USERS[2];
+    setCurrentUser(staff);
+    setSelectedUnit(unit);
+    setCurrentRole('admin');
+    setIsMenuModalOpen(false);
+    setIsProfileModalOpen(false);
+    showToast(`Acesso Farmácia concedido para ${staff.name} (${staff.crf})!`);
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
+    setCurrentRole('tutor');
     setIsProfileModalOpen(false);
-    showToast('Sessão encerrada com sucesso. Você pode navegar ou entrar novamente.');
+    setIsMenuModalOpen(false);
+    localStorage.removeItem('amor_ao_bicho_user');
+    showToast('Você saiu da sua conta. Agora está navegando como visitante.');
   };
 
   const handleUpdateUser = (updatedUser: UserAccount) => {
@@ -501,10 +577,11 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuthModal={(m) => openAuthWithReason(m || 'login')}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenMenu={handleOpenMenu}
       />
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 flex-1 w-full">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 flex-1 w-full">
         {currentRole === 'tutor' && (
           <TutorDashboard
             pets={pets}
@@ -512,19 +589,11 @@ export default function App() {
             doseSchedules={doseSchedules}
             selectedUnit={selectedUnit}
             notifications={notifications}
+            currentUser={currentUser}
+            onOpenMenu={() => handleOpenMenu('auth')}
             onOpenNewPrescription={handleTriggerNewPrescription}
-            onOpenNewPet={() => {
-              if (!currentUser) {
-                openAuthWithReason('login', 'Faça login para cadastrar e gerenciar seus pets.');
-                return;
-              }
-              setIsPetModalOpen(true);
-            }}
+            onOpenNewPet={() => setIsPetModalOpen(true)}
             onOpenNewReminder={(petId) => {
-              if (!currentUser) {
-                openAuthWithReason('login', 'Faça login para programar lembretes da Hora do Remédio.');
-                return;
-              }
               setSelectedPetForReminder(petId);
               setIsReminderModalOpen(true);
             }}
@@ -561,7 +630,7 @@ export default function App() {
       </main>
 
       {/* Official Footer */}
-      <footer className="bg-[#083b2c] text-emerald-100 border-t border-emerald-900/60 mt-12 py-10 px-4 sm:px-6">
+      <footer className="bg-[#083b2c] text-emerald-100 border-t border-emerald-900/60 mt-12 py-10 pb-28 md:pb-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 text-xs">
           {/* Col 1 */}
           <div className="space-y-3">
@@ -621,16 +690,85 @@ export default function App() {
               <span>© {new Date().getFullYear()} Amor ao Bicho Farmácia Veterinária.</span>
               <div className="flex items-center gap-2.5">
                 <button
-                  onClick={() => setCurrentRole('admin')}
-                  className="text-emerald-400/60 hover:text-emerald-200 underline"
+                  type="button"
+                  onClick={() => handleStaffLogin(selectedUnit)}
+                  className="text-emerald-400/70 hover:text-emerald-200 underline cursor-pointer"
                 >
-                  Acesso Funcionários Farmácia (Admin)
+                  Acesso Funcionárias Farmácia (Admin)
                 </button>
               </div>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Dock de Atalhos Móvel (Exibido para Tutores no Celular) */}
+      {currentRole === 'tutor' && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-2xl px-3 py-1.5 flex items-center justify-around">
+          <button
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-emerald-800 font-bold transition-all active:scale-95 cursor-pointer"
+          >
+            <Heart className="w-5 h-5 fill-rose-400 text-rose-500" />
+            <span className="text-[10px] leading-none">Início</span>
+          </button>
+
+          <button
+            onClick={() => setIsReminderModalOpen(true)}
+            className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
+          >
+            <Clock className="w-5 h-5 text-teal-700" />
+            <span className="text-[10px] leading-none">Alarmes</span>
+          </button>
+
+          <button
+            onClick={() => setIsPetModalOpen(true)}
+            className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
+          >
+            <User className="w-5 h-5 text-emerald-700" />
+            <span className="text-[10px] leading-none">Pets</span>
+          </button>
+
+          <a
+            href={`https://wa.me/55${PHARMACY_UNITS[selectedUnit].whatsapp.replace(/\D/g, '')}?text=Olá,%20gostaria%20de%20atendimento%20da%20Amor%20ao%20Bicho`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95"
+            title="Falar no WhatsApp"
+          >
+            <MessageSquare className="w-5 h-5 text-emerald-600" />
+            <span className="text-[10px] leading-none">WhatsApp</span>
+          </a>
+
+          {/* Botão Menu & Cadastro no Dock Mobile */}
+          <button
+            onClick={() => handleOpenMenu('auth')}
+            className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-600 hover:text-emerald-800 transition-all active:scale-95 cursor-pointer"
+            title="Abrir Menu e Cadastro"
+          >
+            <Menu className="w-5 h-5 text-emerald-700" />
+            <span className="text-[10px] leading-none font-bold text-emerald-800">Menu</span>
+          </button>
+        </nav>
+      )}
+
+      {/* Menu Principal (Cadastro E-mail & Senha, Perfil e Farmácia Admin) */}
+      <AppMenuModal
+        isOpen={isMenuModalOpen}
+        onClose={() => setIsMenuModalOpen(false)}
+        currentUser={currentUser}
+        onLogin={handleLogin}
+        onQuickRegister={handleQuickTutorRegister}
+        onQuickLogin={handleQuickTutorLogin}
+        onUpdateUser={handleUpdateUser}
+        onLogout={handleLogout}
+        onStaffLogin={handleStaffLogin}
+        selectedUnit={selectedUnit}
+        onUnitChange={setSelectedUnit}
+        initialTab={menuInitialTab}
+      />
 
       {/* Auth Modal (Login / Cadastro / Recuperação de Senha) */}
       <AuthModal
@@ -643,6 +781,7 @@ export default function App() {
         onRegister={handleRegister}
         initialMode={authModalMode}
         forcedMessage={authForcedMessage}
+        onStaffLogin={handleStaffLogin}
       />
 
       {/* User Profile Modal */}
@@ -653,6 +792,14 @@ export default function App() {
           currentUser={currentUser}
           onUpdateUser={handleUpdateUser}
           onLogout={handleLogout}
+          onOpenAuthModal={() => {
+            setIsProfileModalOpen(false);
+            handleOpenMenu('auth');
+          }}
+          onSwitchToAdmin={() => {
+            setIsProfileModalOpen(false);
+            handleStaffLogin(selectedUnit);
+          }}
         />
       )}
 
