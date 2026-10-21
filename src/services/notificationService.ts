@@ -1,10 +1,11 @@
-// Serviço de Notificações Nativas do Navegador & Gerador de Links WhatsApp
+// Serviço de Notificações Nativas do Navegador & Alarme Contínuo até Confirmação
 
 class NotificationService {
   private audioCtx: AudioContext | null = null;
+  private persistentAudioInterval: number | null = null;
 
-  // Toca um bipe suave usando a Web Audio API (sem precisar de arquivos externos de áudio)
-  playAlertSound() {
+  // Inicializa com segurança o contexto de áudio
+  private getAudioContext(): AudioContext | null {
     try {
       const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!this.audioCtx) {
@@ -13,24 +14,89 @@ class NotificationService {
       if (this.audioCtx.state === 'suspended') {
         this.audioCtx.resume();
       }
+      return this.audioCtx;
+    } catch {
+      return null;
+    }
+  }
 
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
+  // Toca um bipe duplo suave ou teste rápido
+  playAlertSound() {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, this.audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, this.audioCtx.currentTime + 0.15); // A5
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
 
-      gain.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
 
       osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
+      gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(this.audioCtx.currentTime + 0.35);
+      osc.stop(ctx.currentTime + 0.35);
+
+      // Vibração no celular se suportado
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+      }
     } catch {
-      // AudioContext não permitido ou silencioso
+      // Falha silenciosa se áudio não for permitido
+    }
+  }
+
+  // Toca um tom de despertador sonoro mais marcante para lembrete insistente
+  playAlarmChime() {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+
+      // Três bipes sonoros de despertador
+      [0, 0.2, 0.4].forEach((delay, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(idx % 2 === 0 ? 880 : 1046.5, ctx.currentTime + delay);
+
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.15);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.15);
+      });
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([300, 150, 300, 150, 400]);
+      }
+    } catch {
+      // Ignorar caso bloqueado
+    }
+  }
+
+  // Inicia um alarme sonoro insistente se houver remédios atrasados não tomados
+  startPersistentChime(intervalMs: number = 20000) {
+    if (this.persistentAudioInterval !== null) return;
+    this.playAlarmChime();
+    this.persistentAudioInterval = window.setInterval(() => {
+      this.playAlarmChime();
+    }, intervalMs);
+  }
+
+  // Para o alarme sonoro insistente quando todas as doses forem tomadas
+  stopPersistentChime() {
+    if (this.persistentAudioInterval !== null) {
+      clearInterval(this.persistentAudioInterval);
+      this.persistentAudioInterval = null;
     }
   }
 
@@ -56,20 +122,30 @@ class NotificationService {
     }
   }
 
-  // Dispara uma notificação nativa com som
+  // Dispara uma notificação nativa no celular ou desktop
   sendNotification(title: string, options?: NotificationOptions): boolean {
-    this.playAlertSound();
+    this.playAlarmChime();
 
     if (!this.isSupported() || Notification.permission !== 'granted') {
       return false;
     }
 
     try {
-      new Notification(title, {
-        icon: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=128&q=80',
-        badge: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=64&q=80',
+      const defaultIcon = 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=128&q=80';
+      const notification = new Notification(title, {
+        icon: defaultIcon,
+        badge: defaultIcon,
+        requireInteraction: true, // Força a notificação a persistir no Android/Windows até interação do usuário
+        vibrate: [300, 150, 300, 150, 400] as unknown as number[],
         ...options
       });
+
+      // Se clicar na notificação, foca na janela
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
       return true;
     } catch {
       return false;

@@ -25,6 +25,8 @@ import { ArchitectureAndDbView } from './components/architecture/ArchitectureAnd
 import { NewPrescriptionModal } from './components/tutor/NewPrescriptionModal';
 import { PetFormModal } from './components/tutor/PetFormModal';
 import { MedicineReminderModal } from './components/tutor/MedicineReminderModal';
+import { AlarmsModal } from './components/tutor/AlarmsModal';
+import { PetsListModal } from './components/tutor/PetsListModal';
 import { OrderDetailsModal } from './components/tutor/OrderDetailsModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileModal } from './components/auth/UserProfileModal';
@@ -89,7 +91,9 @@ export default function App() {
   // Modals de Operação
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [isPetModalOpen, setIsPetModalOpen] = useState(false);
+  const [isPetsListModalOpen, setIsPetsListModalOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isAlarmsListModalOpen, setIsAlarmsListModalOpen] = useState(false);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<PrescriptionOrder | null>(null);
 
   // Modals de Autenticação, Menu & Perfil
@@ -299,40 +303,71 @@ export default function App() {
     showToast(`Alarme criado para ${schedule.petName}: ${schedule.medicationName}`);
   };
 
-  // Monitoramento em segundo plano para lembretes automáticos no navegador
+  // Monitoramento insistente em segundo plano para lembretes de remédio
+  // Enquanto a pessoa não marcar que a dose foi administrada, continua alertando e enviando notificações
   useEffect(() => {
+    // Guarda a última vez que cada remédio apitou (em timestamp ms)
+    const lastNotifiedMap = new Map<string, number>();
+
     const checkScheduledDoses = () => {
       const now = new Date();
-      const currentHoursMinutes = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      
-      doseSchedules.forEach(schedule => {
-        if (!schedule.takenToday && schedule.time === currentHoursMinutes) {
-          notificationService.sendNotification(`⏰ Hora do Remédio: ${schedule.petName}!`, {
-            body: `Horário previsto: ${schedule.time}. Dose de ${schedule.medicationName}. Favor medicar seu pet!`
-          });
+      const currentMinutesFromMidnight = now.getHours() * 60 + now.getMinutes();
 
-          setNotifications(prev => {
-            const alreadyExists = prev.some(n => n.type === 'dose_alarm' && n.title.includes(schedule.petName) && n.timestamp === `Hoje às ${schedule.time}`);
-            if (alreadyExists) return prev;
-            return [
-              {
-                id: `notif-auto-${Date.now()}-${schedule.id}`,
-                title: `⏰ Hora do Remédio: ${schedule.petName}!`,
-                message: `Horário previsto: ${schedule.time}. Dose de ${schedule.medicationName}. Favor medicar seu pet!`,
-                timestamp: `Hoje às ${schedule.time}`,
-                type: 'dose_alarm',
-                petName: schedule.petName,
-                read: false
-              },
-              ...prev
-            ];
-          });
+      let hasPendingDueDoses = false;
+
+      doseSchedules.forEach(schedule => {
+        if (!schedule.takenToday) {
+          const [schedH, schedM] = schedule.time.split(':').map(Number);
+          const schedMinutes = schedH * 60 + schedM;
+
+          // Se já chegou ou passou do horário programado hoje
+          if (currentMinutesFromMidnight >= schedMinutes) {
+            hasPendingDueDoses = true;
+            const lastNotified = lastNotifiedMap.get(schedule.id) || 0;
+            const nowMs = Date.now();
+
+            // Dispara novamente a cada 2 minutos enquanto NÃO for marcado como administrado
+            if (nowMs - lastNotified >= 2 * 60 * 1000) {
+              lastNotifiedMap.set(schedule.id, nowMs);
+
+              const minutesDelayed = currentMinutesFromMidnight - schedMinutes;
+              const delayText = minutesDelayed > 0 ? ` (Atrasado há ${minutesDelayed} min)` : '';
+
+              notificationService.sendNotification(`🚨 AVISO URGENTE: Medicar ${schedule.petName}!`, {
+                body: `Remédio: ${schedule.medicationName} (${schedule.dosage}). Horário: ${schedule.time}${delayText}. Toque para abrir o app e marcar que foi dado!`,
+                tag: `dose-pending-${schedule.id}`, // Agrupa e atualiza a notificação no celular
+                renotify: true // Faz vibrar e tocar no celular novamente
+              });
+
+              setNotifications(prev => [
+                {
+                  id: `notif-auto-${Date.now()}-${schedule.id}`,
+                  title: `🚨 Alerta Contínuo: Medicar ${schedule.petName}!`,
+                  message: `A dose de ${schedule.medicationName} das ${schedule.time} ainda NÃO foi confirmada.${delayText} Favor medicar seu pet agora.`,
+                  timestamp: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+                  type: 'dose_alarm',
+                  petName: schedule.petName,
+                  read: false
+                },
+                ...prev.slice(0, 25)
+              ]);
+            }
+          }
         }
       });
+
+      if (!hasPendingDueDoses) {
+        notificationService.stopPersistentChime();
+      }
     };
 
-    const interval = setInterval(checkScheduledDoses, 30000);
-    return () => clearInterval(interval);
+    // Checa a cada 15 segundos
+    checkScheduledDoses();
+    const interval = setInterval(checkScheduledDoses, 15000);
+    return () => {
+      clearInterval(interval);
+      notificationService.stopPersistentChime();
+    };
   }, [doseSchedules]);
 
   const handleToggleDose = (scheduleId: string) => {
@@ -341,7 +376,8 @@ export default function App() {
         const nextState = !s.takenToday;
         if (nextState) {
           notificationService.playAlertSound();
-          showToast(`Parabéns! Dose de ${s.petName} registrada com sucesso. 🐾`);
+          notificationService.stopPersistentChime();
+          showToast(`Parabéns! Dose de ${s.petName} registrada com sucesso. Alerta pausado! 🐾`);
         }
         return {
           ...s,
@@ -716,7 +752,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setIsReminderModalOpen(true)}
+            onClick={() => setIsAlarmsListModalOpen(true)}
             className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
           >
             <Clock className="w-5 h-5 text-teal-700" />
@@ -724,7 +760,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setIsPetModalOpen(true)}
+            onClick={() => setIsPetsListModalOpen(true)}
             className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
           >
             <User className="w-5 h-5 text-emerald-700" />
@@ -831,6 +867,30 @@ export default function App() {
         pets={pets}
         onAddSchedule={handleAddSchedule}
         initialPetId={selectedPetForReminder}
+      />
+
+      <AlarmsModal
+        isOpen={isAlarmsListModalOpen}
+        onClose={() => setIsAlarmsListModalOpen(false)}
+        doseSchedules={doseSchedules}
+        pets={pets}
+        selectedUnit={selectedUnit}
+        onToggleDoseAdministered={handleToggleDose}
+        onOpenNewReminder={() => {
+          setSelectedPetForReminder(undefined);
+          setIsReminderModalOpen(true);
+        }}
+      />
+
+      <PetsListModal
+        isOpen={isPetsListModalOpen}
+        onClose={() => setIsPetsListModalOpen(false)}
+        pets={pets}
+        onOpenNewPet={() => setIsPetModalOpen(true)}
+        onOpenNewReminder={(petId) => {
+          setSelectedPetForReminder(petId);
+          setIsReminderModalOpen(true);
+        }}
       />
 
       <OrderDetailsModal

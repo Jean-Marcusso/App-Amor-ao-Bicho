@@ -245,7 +245,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                Notificações Nativas & Som de Alerta
+                Lembrete Insistente & Notificações Nativas
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 notificationStatus === 'granted'
@@ -257,8 +257,8 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
             </div>
             <p className="text-xs text-emerald-100/80 mt-1">
               {notificationStatus === 'granted'
-                ? 'Toca bipe suave e exibe notificações sonoras no horário exato de cada remédio.'
-                : 'Ative as notificações para seu dispositivo tocar mesmo com o aplicativo em segundo plano.'}
+                ? '🔔 Enquanto você não marcar que a dose foi dada, o celular continuará notificando e vibrando a cada 2 minutos.'
+                : 'Ative as notificações para receber alarmes repetitivos no celular até você marcar que o remédio foi administrado.'}
             </p>
           </div>
         </div>
@@ -267,10 +267,10 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
           <button
             onClick={() => handleTestAlert()}
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
-            title="Toca o bipe do alarme e exibe notificação de teste"
+            title="Toca o alarme insistente e exibe notificação de teste"
           >
             <Volume2 className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Testar Som no Dispositivo</span>
+            <span>Testar Alarme no Dispositivo</span>
           </button>
 
           {notificationStatus !== 'granted' && (
@@ -345,18 +345,23 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between gap-3">
+                  <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <span className="text-[11px] text-amber-800">
                       Unidade Amor ao Bicho {PHARMACY_UNITS[selectedUnit].name}
                     </span>
 
-                    <button
-                      onClick={() => onQuickRepurchase(schedule)}
-                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+                    <a
+                      href={notificationService.buildWhatsAppUrl(
+                        PHARMACY_UNITS[selectedUnit].whatsapp,
+                        `Olá, Farmácia Amor ao Bicho (${PHARMACY_UNITS[selectedUnit].name})! Gostaria de renovar a fórmula manipulada do meu pet.\n\n🐾 Pet: ${schedule.petName}\n💊 Medicamento/Fórmula: ${schedule.medicationName}\n📋 Posologia: ${schedule.dosage}\n⏳ Dias restantes de tratamento: ${schedule.daysRemaining} dias.`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Renovar Fórmula em 1 Clique</span>
-                    </button>
+                      <MessageSquare className="w-4 h-4 text-white" />
+                      <span>Renovar a fórmula entrar em contato no WhatsApp</span>
+                    </a>
                   </div>
                 </div>
               );
@@ -437,12 +442,18 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   {schedule.daysRemaining <= (schedule.lowStockAlertDays || 5) && (
                     <div className="mt-2.5 px-2.5 py-1 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-900 text-[10px] font-bold flex items-center justify-between">
                       <span>Restam apenas {schedule.daysRemaining} dias</span>
-                      <button
-                        onClick={() => onQuickRepurchase(schedule)}
-                        className="underline text-amber-950 hover:text-amber-700"
+                      <a
+                        href={notificationService.buildWhatsAppUrl(
+                          PHARMACY_UNITS[selectedUnit].whatsapp,
+                          `Olá! Gostaria de renovar a fórmula do meu pet ${schedule.petName} (${schedule.medicationName}).`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-amber-950 hover:text-amber-700 flex items-center gap-1 font-bold"
                       >
-                        Renovar
-                      </button>
+                        <MessageSquare className="w-3 h-3 text-emerald-800" />
+                        Renovar no WhatsApp
+                      </a>
                     </div>
                   )}
 
