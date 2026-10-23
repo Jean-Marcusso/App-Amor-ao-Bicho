@@ -11,7 +11,10 @@ import {
   Heart,
   User,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Phone,
+  ShieldCheck,
+  MapPin
 } from 'lucide-react';
 import { UserAccount, PharmacyUnit, RegisterData } from '../../types';
 import { INITIAL_USERS } from '../../data/mockData';
@@ -36,12 +39,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onStaffLogin
 }) => {
   const [tab, setTab] = useState<'register' | 'login'>(initialMode);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setTab(initialMode);
+      setError(null);
+    }
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
+
+  // Formatador de WhatsApp
+  const handlePhoneChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 2) {
+      setPhone(digits ? `(${digits}` : '');
+    } else if (digits.length <= 7) {
+      setPhone(`(${digits.slice(0, 2)}) ${digits.slice(2)}`);
+    } else {
+      setPhone(`(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`);
+    }
+  };
+
+  // Formatador de CPF
+  const handleCpfChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) {
+      setCpf(digits);
+    } else if (digits.length <= 6) {
+      setCpf(`${digits.slice(0, 3)}.${digits.slice(3)}`);
+    } else if (digits.length <= 9) {
+      setCpf(`${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`);
+    } else {
+      setCpf(`${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,18 +122,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     }
 
-    // Cadastro ou login rápido de tutor com apenas e-mail e senha
-    const namePart = cleanEmail.split('@')[0];
-    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    if (tab === 'register') {
+      if (!name.trim()) {
+        setError('Por favor, informe seu nome completo.');
+        return;
+      }
+      if (!phone.trim()) {
+        setError('Por favor, informe seu número de WhatsApp.');
+        return;
+      }
+    }
+
+    // Cadastro do tutor com todos os dados
+    const tutorName = tab === 'register' && name.trim()
+      ? name.trim()
+      : (() => {
+          const namePart = cleanEmail.split('@')[0];
+          return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+        })();
 
     const tutorData: RegisterData = {
-      name: formattedName,
+      name: tutorName,
       email: cleanEmail,
       password: password,
-      phone: '(19) 99000-0000',
+      phone: phone.trim() || '(19) 99000-0000',
+      cpf: cpf.trim() || undefined,
       role: 'tutor',
-      city: 'Americana',
-      unit: 'americana'
+      city: city.trim() || 'Americana',
+      unit: city.trim().toLowerCase().includes('valinhos') ? 'valinhos' : 'americana'
     };
 
     onRegister(tutorData);
@@ -194,7 +250,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </h2>
             <p className="text-xs text-slate-500">
               {tab === 'register' 
-                ? 'Informe apenas e-mail e senha para começar a cuidar dos horários do seu pet.' 
+                ? 'Preencha seus dados para começar a gerenciar seus pets e horários de remédios.' 
                 : 'Digite seu e-mail e senha para acessar seus pets e horários de remédios.'}
             </p>
           </div>
@@ -207,12 +263,90 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Formulário com Apenas E-mail e Senha */}
+          {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
+            {/* Campos adicionais exibidos apenas no Cadastro */}
+            {tab === 'register' && (
+              <>
+                {/* Campo Nome Completo */}
+                <div className="space-y-1 text-left">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Nome Completo <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ex: Mariana Duarte"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      required={tab === 'register'}
+                    />
+                  </div>
+                </div>
+
+                {/* Grid WhatsApp e CPF */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Campo WhatsApp */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700">
+                      WhatsApp <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        placeholder="(19) 99999-9999"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        required={tab === 'register'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Campo CPF */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700">
+                      CPF
+                    </label>
+                    <div className="relative">
+                      <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={cpf}
+                        onChange={(e) => handleCpfChange(e.target.value)}
+                        placeholder="000.000.000-00"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campo Cidade */}
+                <div className="space-y-1 text-left">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Cidade
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="Digite sua cidade (ex: Americana, Valinhos, Campinas...)"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Campo E-mail */}
             <div className="space-y-1 text-left">
               <label className="block text-xs font-bold text-slate-700">
-                Seu E-mail
+                Seu E-mail <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -230,7 +364,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Campo Senha */}
             <div className="space-y-1 text-left">
               <label className="block text-xs font-bold text-slate-700">
-                {tab === 'register' ? 'Crie uma Senha' : 'Sua Senha'}
+                {tab === 'register' ? 'Crie uma Senha' : 'Sua Senha'} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />

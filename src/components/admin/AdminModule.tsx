@@ -9,7 +9,8 @@ import {
   Bell,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  LogOut
 } from 'lucide-react';
 import { PrescriptionOrder, OrderStatus, PharmacyUnit, DoseSchedule, Pet } from '../../types';
 import { PHARMACY_UNITS } from '../../data/mockData';
@@ -23,6 +24,7 @@ interface AdminModuleProps {
   onUpdateOrderStatus?: (orderId: string, newStatus: OrderStatus) => void;
   onApproveQuotePrice?: (orderId: string, newPrice: number) => void;
   onBackToHome?: () => void;
+  onLogout?: () => void;
 }
 
 export const AdminModule: React.FC<AdminModuleProps> = ({
@@ -30,7 +32,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   selectedUnit,
   doseSchedules = [],
   pets = [],
-  onBackToHome
+  onLogout
 }) => {
   const [filterUnit, setFilterUnit] = useState<PharmacyUnit | 'todas'>(selectedUnit);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -38,18 +40,6 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Botão Voltar para Área do Tutor */}
-      {onBackToHome && (
-        <button
-          type="button"
-          onClick={onBackToHome}
-          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-sm font-semibold transition-all shadow-xs"
-        >
-          <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
-          ← Voltar para Área do Tutor (Início)
-        </button>
-      )}
-
       {/* Top Banner do Acesso Administrador da Farmácia */}
       <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -69,30 +59,44 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           </div>
         </div>
 
-        {/* Filtro por Unidade */}
-        <div className="flex items-center gap-2 text-xs">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <span className="text-slate-400">Filtrar Unidade:</span>
-          <div className="inline-flex rounded-lg p-0.5 bg-slate-800">
-            <button
-              onClick={() => setFilterUnit('todas')}
-              className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'todas' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
-            >
-              Todas (RMC)
-            </button>
-            <button
-              onClick={() => setFilterUnit('americana')}
-              className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'americana' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
-            >
-              Americana
-            </button>
-            <button
-              onClick={() => setFilterUnit('valinhos')}
-              className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'valinhos' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
-            >
-              Valinhos
-            </button>
+        {/* Filtro por Unidade e Botão Sair */}
+        <div className="flex items-center flex-wrap gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-400">Filtrar Unidade:</span>
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-800">
+              <button
+                onClick={() => setFilterUnit('todas')}
+                className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'todas' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
+              >
+                Todas (RMC)
+              </button>
+              <button
+                onClick={() => setFilterUnit('americana')}
+                className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'americana' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
+              >
+                Americana
+              </button>
+              <button
+                onClick={() => setFilterUnit('valinhos')}
+                className={`px-2.5 py-1 rounded text-xs font-semibold ${filterUnit === 'valinhos' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}
+              >
+                Valinhos
+              </button>
+            </div>
           </div>
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-200 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-xs ml-auto"
+              title="Sair do painel administrativo"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-300" />
+              <span>Sair da Conta</span>
+            </button>
+          )}
         </div>
       </div>
 

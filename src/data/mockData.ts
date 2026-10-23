@@ -154,9 +154,10 @@ export const INITIAL_DOSE_SCHEDULES: DoseSchedule[] = [
     daysRemaining: 4, // Trigger Clube de Recompra! (<= 5 dias)
     totalDoses: 30,
     dosesGiven: 26,
-    nextDoseTime: 'Hoje às 08:00',
+    nextDoseTime: 'Amanhã às 08:00',
     isChronic: true,
-    takenToday: false
+    takenToday: true,
+    lastTakenAt: 'Hoje às 08:00'
   },
   {
     id: 'dose-2',

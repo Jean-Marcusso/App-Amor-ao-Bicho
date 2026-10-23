@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Heart, Plus, Clock, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Heart, Plus, Clock, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
 import { Pet } from '../../types';
 
 interface PetsListModalProps {
@@ -8,6 +8,7 @@ interface PetsListModalProps {
   pets: Pet[];
   onOpenNewPet: () => void;
   onOpenNewReminder: (petId: string) => void;
+  onDeletePet?: (petId: string) => void;
 }
 
 export const PetsListModal: React.FC<PetsListModalProps> = ({
@@ -15,8 +16,11 @@ export const PetsListModal: React.FC<PetsListModalProps> = ({
   onClose,
   pets,
   onOpenNewPet,
-  onOpenNewReminder
+  onOpenNewReminder,
+  onDeletePet
 }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   return (
@@ -127,16 +131,59 @@ export const PetsListModal: React.FC<PetsListModalProps> = ({
                     )}
                   </div>
 
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenNewReminder(pet.id);
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>+ Programar Remédio para {pet.name}</span>
-                  </button>
+                  {confirmDeleteId === pet.id ? (
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 animate-in fade-in">
+                      <div className="flex items-center gap-2 text-rose-800 text-xs font-semibold">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Remover <strong>{pet.name}</strong> da sua lista de pets?</span>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onDeletePet) onDeletePet(pet.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                        >
+                          Sim, remover
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-all cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenNewReminder(pet.id);
+                        }}
+                        className="w-full sm:flex-1 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>+ Programar Remédio para {pet.name}</span>
+                      </button>
+
+                      {onDeletePet && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(pet.id)}
+                          className="w-full sm:w-auto py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:border-rose-300"
+                          title={`Remover pet ${pet.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                          <span>Remover Pet</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -38,13 +38,13 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('tutor');
   const [selectedUnit, setSelectedUnit] = useState<PharmacyUnit>('americana');
 
-  // Usuário Autenticado (Inicia com usuário salvo ou demonstração de tutor)
+  // Usuário Autenticado (Inicia com usuário salvo se houver, ou nulo para navegar como Visitante)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     try {
       const stored = localStorage.getItem('amor_ao_bicho_user');
-      return stored ? JSON.parse(stored) : INITIAL_USERS[0];
+      return stored ? JSON.parse(stored) : null;
     } catch {
-      return INITIAL_USERS[0];
+      return null;
     }
   });
 
@@ -104,8 +104,11 @@ export default function App() {
   const [authForcedMessage, setAuthForcedMessage] = useState<string | undefined>(undefined);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleOpenMenu = (tab: 'auth' | 'profile' | 'staff' = 'auth') => {
-    setMenuInitialTab(tab);
+  const handleOpenMenu = () => {
+    if (!currentUser) {
+      openAuthWithReason('register', 'Para acessar seus dados e perfil, crie seu cadastro ou acesse sua conta.');
+      return;
+    }
     setIsMenuModalOpen(true);
   };
 
@@ -176,33 +179,44 @@ export default function App() {
     showToast(`Conta criada com sucesso! Bem-vindo(a) à Amor ao Bicho, ${newUser.name}.`);
   };
 
-  // Cadastro Rápido do Tutor (Apenas E-mail e Senha)
-  const handleQuickTutorRegister = (email: string, password?: string) => {
+  // Cadastro Rápido do Tutor (Nome, WhatsApp, CPF, Cidade, E-mail e Senha)
+  const handleQuickTutorRegister = (
+    email: string, 
+    password?: string,
+    extra?: { name?: string; phone?: string; cpf?: string; city?: string }
+  ) => {
     const cleanEmail = email.trim().toLowerCase();
-    const namePart = cleanEmail.split('@')[0];
-    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    const formattedName = extra?.name?.trim() 
+      ? extra.name.trim() 
+      : (() => {
+          const namePart = cleanEmail.split('@')[0];
+          return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+        })();
+
+    const userCity = extra?.city || (selectedUnit === 'americana' ? 'Americana' : 'Valinhos');
 
     const newUser: UserAccount = {
       id: `tutor-${Date.now()}`,
       name: formattedName,
       email: cleanEmail,
       role: 'tutor',
-      phone: '(19) 99000-0000',
-      pharmacyUnit: selectedUnit,
+      phone: extra?.phone?.trim() || '(19) 99000-0000',
+      cpf: extra?.cpf?.trim() || undefined,
+      pharmacyUnit: userCity.toLowerCase() === 'valinhos' ? 'valinhos' : 'americana',
       avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
       address: {
         street: 'Rua Principal',
         number: '100',
         neighborhood: 'Centro',
-        city: selectedUnit === 'americana' ? 'Americana' : 'Valinhos',
+        city: userCity,
         state: 'SP',
-        cep: selectedUnit === 'americana' ? '13465-000' : '13270-000'
+        cep: userCity === 'Valinhos' ? '13270-000' : '13465-000'
       }
     };
 
     setCurrentUser(newUser);
     setCurrentRole('tutor');
-    showToast(`Bem-vindo(a) à Amor ao Bicho! Sua Área do Tutor foi liberada com sucesso.`);
+    showToast(`Bem-vindo(a) à Amor ao Bicho, ${newUser.name}! Sua Área do Tutor foi liberada.`);
   };
 
   // Login Rápido (E-mail e Senha)
@@ -286,6 +300,14 @@ export default function App() {
     showToast(`Perfil do pet ${newPet.name} salvo com sucesso!`);
   };
 
+  const handleDeletePet = (petId: string) => {
+    const petToRemove = pets.find(p => p.id === petId);
+    setPets(prev => prev.filter(p => p.id !== petId));
+    // Remove alarmes e horários associados a este pet
+    setDoseSchedules(prev => prev.filter(s => s.petId !== petId));
+    showToast(`Pet ${petToRemove?.name || ''} foi removido com sucesso.`);
+  };
+
   const handleAddSchedule = (schedule: DoseSchedule) => {
     setDoseSchedules(prev => [schedule, ...prev]);
     setNotifications(prev => [
@@ -303,55 +325,73 @@ export default function App() {
     showToast(`Alarme criado para ${schedule.petName}: ${schedule.medicationName}`);
   };
 
-  // Monitoramento insistente em segundo plano para lembretes de remédio
-  // Enquanto a pessoa não marcar que a dose foi administrada, continua alertando e enviando notificações
+  // Monitoramento de lembretes de remédio
+  // Só executa quando o tutor está conectado E tem alarmes/remédios cadastrados para seus pets
   useEffect(() => {
+    // Se o usuário não está conectado (visitante na tela inicial) ou não é tutor, NUNCA tocar som nem alarme
+    if (!currentUser || currentRole !== 'tutor') {
+      notificationService.stopPersistentChime();
+      return;
+    }
+
     // Guarda a última vez que cada remédio apitou (em timestamp ms)
     const lastNotifiedMap = new Map<string, number>();
 
     const checkScheduledDoses = () => {
+      if (!currentUser || currentRole !== 'tutor') {
+        notificationService.stopPersistentChime();
+        return;
+      }
+
+      // Filtra apenas pets cadastrados do tutor
+      const userPetIds = new Set(pets.map(p => p.id));
+      const pendingSchedules = doseSchedules.filter(s => userPetIds.has(s.petId) && !s.takenToday);
+
+      if (pendingSchedules.length === 0) {
+        notificationService.stopPersistentChime();
+        return;
+      }
+
       const now = new Date();
       const currentMinutesFromMidnight = now.getHours() * 60 + now.getMinutes();
 
       let hasPendingDueDoses = false;
 
-      doseSchedules.forEach(schedule => {
-        if (!schedule.takenToday) {
-          const [schedH, schedM] = schedule.time.split(':').map(Number);
-          const schedMinutes = schedH * 60 + schedM;
+      pendingSchedules.forEach(schedule => {
+        const [schedH, schedM] = schedule.time.split(':').map(Number);
+        const schedMinutes = schedH * 60 + schedM;
 
-          // Se já chegou ou passou do horário programado hoje
-          if (currentMinutesFromMidnight >= schedMinutes) {
-            hasPendingDueDoses = true;
-            const lastNotified = lastNotifiedMap.get(schedule.id) || 0;
-            const nowMs = Date.now();
+        // Se já chegou no horário programado hoje
+        if (currentMinutesFromMidnight >= schedMinutes) {
+          hasPendingDueDoses = true;
+          const lastNotified = lastNotifiedMap.get(schedule.id) || 0;
+          const nowMs = Date.now();
 
-            // Dispara novamente a cada 2 minutos enquanto NÃO for marcado como administrado
-            if (nowMs - lastNotified >= 2 * 60 * 1000) {
-              lastNotifiedMap.set(schedule.id, nowMs);
+          // Dispara a cada 2 minutos enquanto NÃO for marcado como administrado
+          if (nowMs - lastNotified >= 2 * 60 * 1000) {
+            lastNotifiedMap.set(schedule.id, nowMs);
 
-              const minutesDelayed = currentMinutesFromMidnight - schedMinutes;
-              const delayText = minutesDelayed > 0 ? ` (Atrasado há ${minutesDelayed} min)` : '';
+            const minutesDelayed = currentMinutesFromMidnight - schedMinutes;
+            const delayText = minutesDelayed > 0 ? ` (Atrasado há ${minutesDelayed} min)` : '';
 
-              notificationService.sendNotification(`🚨 AVISO URGENTE: Medicar ${schedule.petName}!`, {
-                body: `Remédio: ${schedule.medicationName} (${schedule.dosage}). Horário: ${schedule.time}${delayText}. Toque para abrir o app e marcar que foi dado!`,
-                tag: `dose-pending-${schedule.id}`, // Agrupa e atualiza a notificação no celular
-                renotify: true // Faz vibrar e tocar no celular novamente
-              });
+            notificationService.sendNotification(`🚨 AVISO URGENTE: Medicar ${schedule.petName}!`, {
+              body: `Remédio: ${schedule.medicationName} (${schedule.dosage}). Horário: ${schedule.time}${delayText}. Toque para abrir o app e marcar que foi dado!`,
+              tag: `dose-pending-${schedule.id}`, // Agrupa e atualiza a notificação no celular
+              renotify: true // Faz vibrar e tocar no celular novamente
+            });
 
-              setNotifications(prev => [
-                {
-                  id: `notif-auto-${Date.now()}-${schedule.id}`,
-                  title: `🚨 Alerta Contínuo: Medicar ${schedule.petName}!`,
-                  message: `A dose de ${schedule.medicationName} das ${schedule.time} ainda NÃO foi confirmada.${delayText} Favor medicar seu pet agora.`,
-                  timestamp: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-                  type: 'dose_alarm',
-                  petName: schedule.petName,
-                  read: false
-                },
-                ...prev.slice(0, 25)
-              ]);
-            }
+            setNotifications(prev => [
+              {
+                id: `notif-auto-${Date.now()}-${schedule.id}`,
+                title: `🚨 Alerta Contínuo: Medicar ${schedule.petName}!`,
+                message: `A dose de ${schedule.medicationName} das ${schedule.time} ainda NÃO foi confirmada.${delayText} Favor medicar seu pet agora.`,
+                timestamp: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+                type: 'dose_alarm',
+                petName: schedule.petName,
+                read: false
+              },
+              ...prev.slice(0, 25)
+            ]);
           }
         }
       });
@@ -368,7 +408,7 @@ export default function App() {
       clearInterval(interval);
       notificationService.stopPersistentChime();
     };
-  }, [doseSchedules]);
+  }, [doseSchedules, currentUser, currentRole, pets]);
 
   const handleToggleDose = (scheduleId: string) => {
     setDoseSchedules(prev => prev.map(s => {
@@ -626,10 +666,20 @@ export default function App() {
             selectedUnit={selectedUnit}
             notifications={notifications}
             currentUser={currentUser}
-            onOpenMenu={() => handleOpenMenu('auth')}
+            onOpenMenu={handleOpenMenu}
             onOpenNewPrescription={handleTriggerNewPrescription}
-            onOpenNewPet={() => setIsPetModalOpen(true)}
+            onOpenNewPet={() => {
+              if (!currentUser) {
+                openAuthWithReason('register', 'Para cadastrar seu pet, crie seu cadastro ou acesse sua conta.');
+                return;
+              }
+              setIsPetModalOpen(true);
+            }}
             onOpenNewReminder={(petId) => {
+              if (!currentUser) {
+                openAuthWithReason('register', 'Para programar a hora do remédio e alarmes, crie seu cadastro ou acesse sua conta.');
+                return;
+              }
               setSelectedPetForReminder(petId);
               setIsReminderModalOpen(true);
             }}
@@ -637,6 +687,7 @@ export default function App() {
             onToggleDoseAdministered={handleToggleDose}
             onQuickRepurchase={handleQuickRepurchase}
             onDismissNotification={handleDismissNotification}
+            onDeletePet={handleDeletePet}
           />
         )}
 
@@ -648,7 +699,7 @@ export default function App() {
             pets={pets}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onApproveQuotePrice={handleApproveQuotePrice}
-            onBackToHome={() => setCurrentRole('tutor')}
+            onLogout={handleLogout}
           />
         )}
 
@@ -752,7 +803,13 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setIsAlarmsListModalOpen(true)}
+            onClick={() => {
+              if (!currentUser) {
+                openAuthWithReason('register', 'Para ver e programar seus alarmes, crie seu cadastro ou faça login.');
+                return;
+              }
+              setIsAlarmsListModalOpen(true);
+            }}
             className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
           >
             <Clock className="w-5 h-5 text-teal-700" />
@@ -760,7 +817,13 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setIsPetsListModalOpen(true)}
+            onClick={() => {
+              if (!currentUser) {
+                openAuthWithReason('register', 'Para ver e cadastrar seus pets, crie seu cadastro ou faça login.');
+                return;
+              }
+              setIsPetsListModalOpen(true);
+            }}
             className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-500 hover:text-emerald-700 transition-all active:scale-95 cursor-pointer"
           >
             <User className="w-5 h-5 text-emerald-700" />
@@ -778,11 +841,11 @@ export default function App() {
             <span className="text-[10px] leading-none">WhatsApp</span>
           </a>
 
-          {/* Botão Menu & Cadastro no Dock Mobile */}
+          {/* Botão Menu no Dock Mobile */}
           <button
-            onClick={() => handleOpenMenu('auth')}
+            onClick={handleOpenMenu}
             className="flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-slate-600 hover:text-emerald-800 transition-all active:scale-95 cursor-pointer"
-            title="Abrir Menu e Cadastro"
+            title="Abrir Meus Dados"
           >
             <Menu className="w-5 h-5 text-emerald-700" />
             <span className="text-[10px] leading-none font-bold text-emerald-800">Menu</span>
@@ -790,20 +853,15 @@ export default function App() {
         </nav>
       )}
 
-      {/* Menu Principal (Cadastro E-mail & Senha, Perfil e Farmácia Admin) */}
+      {/* Menu Principal (Dados do Usuário / Perfil) */}
       <AppMenuModal
         isOpen={isMenuModalOpen}
         onClose={() => setIsMenuModalOpen(false)}
         currentUser={currentUser}
-        onLogin={handleLogin}
-        onQuickRegister={handleQuickTutorRegister}
-        onQuickLogin={handleQuickTutorLogin}
         onUpdateUser={handleUpdateUser}
         onLogout={handleLogout}
-        onStaffLogin={handleStaffLogin}
+        onOpenAuth={() => openAuthWithReason('login')}
         selectedUnit={selectedUnit}
-        onUnitChange={setSelectedUnit}
-        initialTab={menuInitialTab}
       />
 
       {/* Auth Modal (Login / Cadastro / Recuperação de Senha) */}
@@ -891,6 +949,7 @@ export default function App() {
           setSelectedPetForReminder(petId);
           setIsReminderModalOpen(true);
         }}
+        onDeletePet={handleDeletePet}
       />
 
       <OrderDetailsModal
