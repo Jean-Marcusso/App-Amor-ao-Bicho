@@ -5,7 +5,6 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Calendar, 
-  Sparkles, 
   Upload, 
   ChevronRight, 
   ShieldCheck, 
@@ -57,7 +56,6 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   onDismissNotification,
   onDeletePet
 }) => {
-  const [notificationFilter, setNotificationFilter] = useState<'all' | 'dose_alarm' | 'low_stock' | 'order_update'>('all');
   const [confirmDeletePetId, setConfirmDeletePetId] = useState<string | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>(
     notificationService.getPermission()
@@ -89,11 +87,6 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   });
 
   const unit = PHARMACY_UNITS[selectedUnit];
-
-  const filteredNotifications = notifications.filter(n => {
-    if (notificationFilter === 'all') return true;
-    return n.type === notificationFilter;
-  });
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">
@@ -170,75 +163,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
         </div>
       </section>
 
-      {/* Hero Banner: Foco em Notificações & Gestão do Pet */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-[#0b4d3a] via-[#0d5c46] to-[#127057] text-white p-5 sm:p-8 shadow-xl overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
-          <Heart className="w-80 h-80" />
-        </div>
 
-        <div className="relative z-10 max-w-2xl space-y-4">
-          {!currentUser ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-emerald-950/70 border border-emerald-400/30 backdrop-blur-md text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
-                <span className="text-emerald-100">
-                  Navegando como <strong>Visitante</strong>. Crie seu cadastro com apenas e-mail e senha para salvar seus pets e alarmes!
-                </span>
-              </div>
-              {onOpenMenu && (
-                <button
-                  type="button"
-                  onClick={onOpenMenu}
-                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 font-bold text-xs shrink-0 transition-all shadow-xs cursor-pointer self-start sm:self-auto"
-                >
-                  Entrar / Cadastrar
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-semibold backdrop-blur-xs border border-emerald-600/30">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Olá, <strong>{currentUser.name}</strong> • Área do Tutor Conectada</span>
-            </div>
-          )}
-
-          <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
-            Nunca mais esqueça a hora do remédio nem deixe a fórmula acabar.
-          </h1>
-
-          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-            Configure alarmes com som para cada medicação, monitore a quantidade restante de doses e repita pedidos com a Amor ao Bicho de <strong>{unit.city}</strong> sem complicação.
-          </p>
-
-          <div className="pt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
-            <button
-              onClick={() => onOpenNewReminder()}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-white text-emerald-950 font-bold text-xs shadow-lg hover:bg-emerald-50 transition-all active:scale-95 cursor-pointer"
-            >
-              <Clock className="w-4 h-4 text-emerald-700" />
-              <span>Programar Hora do Remédio</span>
-            </button>
-
-            <button
-              onClick={onOpenNewPet}
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 text-white font-semibold text-xs border border-emerald-500/30 transition-all cursor-pointer"
-            >
-              <Heart className="w-4 h-4 text-rose-300" />
-              <span>Cadastrar Novo Pet</span>
-            </button>
-
-            <a
-              href={notificationService.buildWhatsAppUrl(unit.whatsapp, `Olá! Gostaria de falar com a farmácia Amor ao Bicho (${unit.name}) sobre fórmulas e manipulação para meu pet.`)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all active:scale-95"
-            >
-              <MessageSquare className="w-4 h-4 text-white" />
-              <span>Falar no WhatsApp</span>
-            </a>
-          </div>
-        </div>
-      </div>
 
       {/* BANNER DE STATUS DE NOTIFICAÇÕES & TESTE SONORO */}
       <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-emerald-500/30">
@@ -501,113 +426,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
             )}
           </section>
 
-          {/* SESSÃO 2: 🔔 CENTRAL DE NOTIFICAÇÕES & HISTÓRICO DE ALERTAS */}
-          <section className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">
-                    Central de Notificações Recebidas
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Histórico em tempo real de alarmes de doses, alertas de reposição e atualizações de pedidos
-                  </p>
-                </div>
-              </div>
 
-              {/* Filtros de Notificação */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs overflow-x-auto">
-                <button
-                  onClick={() => setNotificationFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                    notificationFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Todas ({notifications.length})
-                </button>
-                <button
-                  onClick={() => setNotificationFilter('dose_alarm')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                    notificationFilter === 'dose_alarm' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  ⏰ Hora do Remédio
-                </button>
-                <button
-                  onClick={() => setNotificationFilter('low_stock')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                    notificationFilter === 'low_stock' ? 'bg-white text-amber-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  ⚠️ Remédio Acabando
-                </button>
-                <button
-                  onClick={() => setNotificationFilter('order_update')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                    notificationFilter === 'order_update' ? 'bg-white text-teal-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  📦 Farmácia
-                </button>
-              </div>
-            </div>
-
-            {filteredNotifications.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                Nenhuma notificação encontrada nesta categoria.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredNotifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    className={`p-3.5 rounded-xl border flex items-start justify-between gap-3 text-xs transition-all ${
-                      notif.type === 'low_stock'
-                        ? 'bg-amber-50/70 border-amber-200 text-amber-950'
-                        : notif.type === 'dose_alarm'
-                        ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-                        : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm ${
-                        notif.type === 'low_stock'
-                          ? 'bg-amber-200 text-amber-900'
-                          : notif.type === 'dose_alarm'
-                          ? 'bg-emerald-200 text-emerald-900'
-                          : 'bg-teal-200 text-teal-900'
-                      }`}>
-                        {notif.type === 'low_stock' ? '⚠️' : notif.type === 'dose_alarm' ? '⏰' : '📦'}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <strong className="text-xs font-bold">{notif.title}</strong>
-                          <span className="text-[10px] text-slate-400 font-normal">{notif.timestamp}</span>
-                        </div>
-                        <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">
-                          {notif.message}
-                        </p>
-                      </div>
-                    </div>
-
-                    {onDismissNotification && (
-                      <button
-                        onClick={() => onDismissNotification(notif.id)}
-                        className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
-                        title="Dispensar notificação"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
 
           {/* SESSÃO 3: MEUS PETS CADASTRADOS */}
           <section className="space-y-4">
