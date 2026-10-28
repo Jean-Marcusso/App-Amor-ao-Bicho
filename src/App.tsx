@@ -33,6 +33,19 @@ import { UserProfileModal } from './components/auth/UserProfileModal';
 import { AppMenuModal } from './components/menu/AppMenuModal';
 import { CheckCircle2, Heart, MapPin, Clock, Plus, MessageSquare, Building2, User, Menu } from 'lucide-react';
 import { notificationService } from './services/notificationService';
+import { subscribeToAuthChanges, logoutFirebase } from './services/firebase';
+import { 
+  saveUserProfileToFirestore,
+  subscribeUserPets,
+  savePetToFirestore,
+  deletePetFromFirestore,
+  subscribeUserSchedules,
+  saveScheduleToFirestore,
+  updateScheduleInFirestore,
+  subscribeOrders,
+  saveOrderToFirestore,
+  updateOrderStatusInFirestore
+} from './services/firestoreService';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('tutor');
@@ -130,6 +143,60 @@ export default function App() {
       localStorage.removeItem('amor_ao_bicho_user');
     }
   }, [currentUser]);
+
+  // Sincroniza sessão ativa do Firebase Auth
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      if (user) {
+        setCurrentUser(user);
+        if (user.role === 'admin') {
+          setCurrentRole('admin');
+          if (user.pharmacyUnit) setSelectedUnit(user.pharmacyUnit);
+        } else if (user.role === 'vet') {
+          setCurrentRole('vet');
+        } else {
+          setCurrentRole('tutor');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sincronização em Tempo Real com o Cloud Firestore (Pets, Alarmes e Pedidos)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Salva perfil atualizado no Firestore
+    saveUserProfileToFirestore(currentUser);
+
+    // Escuta Pets do usuário logado
+    const unsubPets = subscribeUserPets(currentUser.id, (firestorePets) => {
+      if (firestorePets && firestorePets.length > 0) {
+        setPets(firestorePets);
+      }
+    });
+
+    // Escuta Horários e Alarmes do usuário logado
+    const unsubSchedules = subscribeUserSchedules(currentUser.id, (firestoreSchedules) => {
+      if (firestoreSchedules && firestoreSchedules.length > 0) {
+        setDoseSchedules(firestoreSchedules);
+      }
+    });
+
+    // Escuta Pedidos de Receita do usuário logado / farmácia
+    const unsubOrders = subscribeOrders(currentUser.id, currentRole, (firestoreOrders) => {
+      if (firestoreOrders && firestoreOrders.length > 0) {
+        setOrders(firestoreOrders);
+      }
+    });
+
+    return () => {
+      unsubPets();
+      unsubSchedules();
+      unsubOrders();
+    };
+  }, [currentUser?.id, currentRole]);
 
   // Auth Handlers
   const handleLogin = (user: UserAccount) => {
@@ -255,7 +322,12 @@ export default function App() {
     showToast(`Acesso Farmácia concedido para ${staff.name} (${staff.crf})!`);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutFirebase();
+    } catch (e) {
+      console.warn('Erro ao deslogar do Firebase:', e);
+    }
     setCurrentUser(null);
     setCurrentRole('tutor');
     setIsProfileModalOpen(false);
@@ -286,6 +358,9 @@ export default function App() {
 
   const handleAddNewOrder = (newOrder: PrescriptionOrder) => {
     setOrders(prev => [newOrder, ...prev]);
+    if (currentUser?.id) {
+      saveOrderToFirestore(newOrder, currentUser.id);
+    }
     showToast(`Receita ${newOrder.code} enviada com sucesso para a Amor ao Bicho ${PHARMACY_UNITS[newOrder.unit].name}!`);
   };
 
@@ -297,6 +372,9 @@ export default function App() {
       }
       return [...prev, newPet];
     });
+    if (currentUser?.id) {
+      savePetToFirestore(newPet, currentUser.id);
+    }
     showToast(`Perfil do pet ${newPet.name} salvo com sucesso!`);
   };
 
@@ -305,11 +383,17 @@ export default function App() {
     setPets(prev => prev.filter(p => p.id !== petId));
     // Remove alarmes e horários associados a este pet
     setDoseSchedules(prev => prev.filter(s => s.petId !== petId));
+    if (currentUser?.id) {
+      deletePetFromFirestore(petId);
+    }
     showToast(`Pet ${petToRemove?.name || ''} foi removido com sucesso.`);
   };
 
   const handleAddSchedule = (schedule: DoseSchedule) => {
     setDoseSchedules(prev => [schedule, ...prev]);
+    if (currentUser?.id) {
+      saveScheduleToFirestore(schedule, currentUser.id);
+    }
     setNotifications(prev => [
       {
         id: `notif-sched-${Date.now()}`,
@@ -419,11 +503,18 @@ export default function App() {
           notificationService.stopPersistentChime();
           showToast(`Parabéns! Dose de ${s.petName} registrada com sucesso. Alerta pausado! 🐾`);
         }
-        return {
+        const updated = {
           ...s,
           takenToday: nextState,
           dosesGiven: nextState ? s.dosesGiven + 1 : Math.max(0, s.dosesGiven - 1)
         };
+        if (currentUser?.id) {
+          updateScheduleInFirestore(scheduleId, {
+            takenToday: updated.takenToday,
+            dosesGiven: updated.dosesGiven
+          });
+        }
+        return updated;
       }
       return s;
     }));
@@ -475,6 +566,9 @@ export default function App() {
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    if (currentUser?.id) {
+      saveOrderToFirestore(newOrder, currentUser.id);
+    }
     setNotifications(prev => [
       {
         id: `notif-rep-${Date.now()}`,
@@ -545,6 +639,10 @@ export default function App() {
       }
       return o;
     }));
+
+    if (currentUser?.id) {
+      updateOrderStatusInFirestore(orderId, newStatus);
+    }
 
     setNotifications(prev => [
       {

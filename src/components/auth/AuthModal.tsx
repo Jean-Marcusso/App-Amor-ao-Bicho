@@ -10,14 +10,19 @@ import {
   Building2,
   Heart,
   User,
-  Sparkles,
-  CheckCircle2,
   Phone,
   ShieldCheck,
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import { UserAccount, PharmacyUnit, RegisterData } from '../../types';
 import { INITIAL_USERS } from '../../data/mockData';
+import { 
+  loginWithEmail, 
+  registerWithEmail, 
+  loginWithGoogle, 
+  formatFirebaseError 
+} from '../../services/firebase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -47,11 +52,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       setTab(initialMode);
       setError(null);
+      setIsLoading(false);
+      setIsGoogleLoading(false);
     }
   }, [isOpen, initialMode]);
 
@@ -83,7 +92,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Login com o Google
+  const handleGoogleAuth = async () => {
+    setError(null);
+    setIsGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle();
+      onLogin(user);
+      onClose();
+    } catch (err: any) {
+      console.error('Erro na autenticação com Google:', err);
+      setError(formatFirebaseError(err));
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // Login ou Cadastro com E-mail e Senha
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -98,62 +124,64 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (!password || password.length < 4) {
-      setError('A senha deve ter no mínimo 4 caracteres.');
+    if (!password || password.length < 6) {
+      setError('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
-    // Se estiver fazendo login:
+    // Se for email de funcionária admin para login direto em dev:
     if (tab === 'login') {
-      // Verifica se é conta de funcionária admin
       const adminUser = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'admin');
-      if (adminUser) {
+      if (adminUser && password === '123456') {
         onLogin(adminUser);
         onClose();
         return;
       }
+    }
 
-      // Se for tutor existente nos dados iniciais
-      const existing = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail);
-      if (existing) {
-        onLogin(existing);
+    setIsLoading(true);
+    try {
+      if (tab === 'login') {
+        // Autentica via Firebase Auth com e-mail e senha
+        const user = await loginWithEmail(cleanEmail, password);
+        onLogin(user);
         onClose();
-        return;
+      } else {
+        // Validações do formulário de cadastro
+        if (!name.trim()) {
+          setError('Por favor, informe seu nome completo.');
+          setIsLoading(false);
+          return;
+        }
+        if (!phone.trim()) {
+          setError('Por favor, informe seu número de WhatsApp.');
+          setIsLoading(false);
+          return;
+        }
+
+        const tutorData: RegisterData = {
+          name: name.trim(),
+          email: cleanEmail,
+          password: password,
+          phone: phone.trim() || '(19) 99000-0000',
+          cpf: cpf.trim() || undefined,
+          role: 'tutor',
+          city: city.trim() || 'Americana',
+          unit: city.trim().toLowerCase().includes('valinhos') ? 'valinhos' : 'americana'
+        };
+
+        // Cria a conta no Firebase Auth com e-mail e senha
+        const user = await registerWithEmail(tutorData);
+        onLogin(user);
+        onRegister(tutorData);
+        onClose();
       }
+    } catch (err: any) {
+      console.error('Erro na autenticação Firebase:', err);
+      setError(formatFirebaseError(err));
+    } finally {
+      setIsLoading(false);
     }
-
-    if (tab === 'register') {
-      if (!name.trim()) {
-        setError('Por favor, informe seu nome completo.');
-        return;
-      }
-      if (!phone.trim()) {
-        setError('Por favor, informe seu número de WhatsApp.');
-        return;
-      }
-    }
-
-    // Cadastro do tutor com todos os dados
-    const tutorName = tab === 'register' && name.trim()
-      ? name.trim()
-      : (() => {
-          const namePart = cleanEmail.split('@')[0];
-          return namePart.charAt(0).toUpperCase() + namePart.slice(1);
-        })();
-
-    const tutorData: RegisterData = {
-      name: tutorName,
-      email: cleanEmail,
-      password: password,
-      phone: phone.trim() || '(19) 99000-0000',
-      cpf: cpf.trim() || undefined,
-      role: 'tutor',
-      city: city.trim() || 'Americana',
-      unit: city.trim().toLowerCase().includes('valinhos') ? 'valinhos' : 'americana'
-    };
-
-    onRegister(tutorData);
-    onClose();
   };
 
   const handleDemoTutorLogin = () => {
@@ -210,7 +238,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        <div className="p-6 pt-2 space-y-5">
+        <div className="p-6 pt-2 space-y-4">
           {/* Abas: Criar Cadastro ou Já Tenho Conta */}
           <div className="grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80">
             <button
@@ -244,27 +272,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
           {/* Título da Ação */}
-          <div className="text-left space-y-1">
+          <div className="text-left space-y-0.5">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
               {tab === 'register' ? 'Cadastre-se na Área do Tutor' : 'Acesse sua Área do Tutor'}
             </h2>
             <p className="text-xs text-slate-500">
               {tab === 'register' 
-                ? 'Preencha seus dados para começar a gerenciar seus pets e horários de remédios.' 
-                : 'Digite seu e-mail e senha para acessar seus pets e horários de remédios.'}
+                ? 'Conecte-se com sua conta Google ou preencha seus dados para salvar pets e alarmes.' 
+                : 'Entre com sua conta Google ou informe seu e-mail e senha cadastrados.'}
             </p>
           </div>
 
           {/* Mensagem de Erro */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2 text-left">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* BOTÃO OFICIAL DE LOGIN COM O GOOGLE */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={isGoogleLoading || isLoading}
+              onClick={handleGoogleAuth}
+              className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:border-emerald-600/60 bg-white hover:bg-emerald-50/40 text-slate-700 hover:text-slate-900 font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] cursor-pointer disabled:opacity-60"
+            >
+              {isGoogleLoading ? (
+                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+              )}
+              <span>
+                {isGoogleLoading
+                  ? 'Conectando ao Google...'
+                  : tab === 'register'
+                  ? 'Cadastrar com o Google'
+                  : 'Entrar com o Google'}
+              </span>
+            </button>
+
+            {/* Divisor */}
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-slate-200 w-full" />
+              <span className="bg-white px-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                ou com e-mail e senha
+              </span>
+              <div className="border-t border-slate-200 w-full" />
+            </div>
+          </div>
+
+          {/* Formulário com E-mail e Senha */}
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* Campos adicionais exibidos apenas no Cadastro */}
             {tab === 'register' && (
               <>
@@ -287,7 +364,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
 
                 {/* Grid WhatsApp e CPF */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Campo WhatsApp */}
                   <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700">
@@ -335,7 +412,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Digite sua cidade (ex: Americana, Valinhos, Campinas...)"
+                      placeholder="Ex: Americana, Valinhos, Campinas..."
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
@@ -372,7 +449,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={tab === 'register' ? 'Mínimo de 4 dígitos' : 'Digite sua senha'}
+                  placeholder={tab === 'register' ? 'Mínimo de 6 dígitos' : 'Digite sua senha'}
                   className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                   required
                 />
@@ -390,15 +467,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Botão Principal de Envio */}
             <button
               type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-2"
+              disabled={isLoading || isGoogleLoading}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-60"
             >
-              <span>{tab === 'register' ? 'Criar Cadastro e Acessar Área do Tutor' : 'Entrar na Minha Área do Tutor'}</span>
-              <ArrowRight className="w-4 h-4" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>{tab === 'register' ? 'Criando conta no Firebase...' : 'Entrando...'}</span>
+                </>
+              ) : (
+                <>
+                  <span>{tab === 'register' ? 'Criar Cadastro e Acessar Área do Tutor' : 'Entrar com E-mail e Senha'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
           {/* Atalho Demo */}
-          <div className="pt-2 text-center">
+          <div className="pt-1 text-center">
             <button
               type="button"
               onClick={handleDemoTutorLogin}
@@ -409,7 +496,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
           {/* Acesso Funcionárias Farmácia (Admin) */}
-          <div className="pt-3 border-t border-slate-100 space-y-2">
+          <div className="pt-2.5 border-t border-slate-100 space-y-2">
             <span className="text-[11px] font-bold text-slate-500 block text-left">
               Funcionária da Farmácia Amor ao Bicho?
             </span>

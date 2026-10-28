@@ -1,0 +1,37 @@
+{
+  "name": "Amor ao Bicho - Manipulação Veterinária",
+  "short_name": "Amor ao Bicho",
+  "description": "Aplicativo oficial da Amor ao Bicho: alarmes sonoros de medicação, reposição de fórmulas e cuidado com seu pet em Americana e Valinhos - SP.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b4d3a",
+  "theme_color": "#0b4d3a",
+  "orientation": "portrait",
+  "categories": [
+    "medical",
+    "lifestyle",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
